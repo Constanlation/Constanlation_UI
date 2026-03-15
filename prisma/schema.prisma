@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+//   url      = env("DATABASE_URL")
+}
+
+model DeploymentRun {
+  id             String            @id @default(cuid())
+  runLabel       String            @unique
+  generatedAt    DateTime
+  network        String
+  chainId        Int
+  persistMode    String
+  factoryAddress String
+  roles          Json
+  createdAt      DateTime          @default(now())
+
+  tokens         Token[]
+  vaults         Vault[]
+  strategies     Strategy[]
+  snapshots      VaultSnapshot[]
+  deposits       DepositEvent[]
+  withdrawals    WithdrawalEvent[]
+}
+
+model Token {
+  id        String        @id @default(cuid())
+  runId     String
+  run       DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  address   String
+  name      String
+  symbol    String
+  decimals  Int
+  createdAt DateTime      @default(now())
+
+  @@index([runId])
+  @@unique([runId, address])
+}
+
+model Vault {
+  id                   String        @id @default(cuid())
+  runId                String
+  run                  DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  vaultKey             String
+  scenario             String
+  address              String
+  governanceManager    String
+  automationController String?
+  assetAddress         String
+  assetSymbol          String
+  assetDecimals        Int
+  shareSymbol          String
+  withdrawalFeeBps     Int
+  totalAssets          String
+  idleAssets           String
+  totalSupply          String
+  pricePerShare        String
+  totalQueuedAssets    String
+  paused               Boolean
+  nextSettleId         String
+  withdrawalCounter    String
+  createdAt            DateTime      @default(now())
+
+  @@index([runId])
+  @@unique([runId, vaultKey])
+  @@unique([runId, address])
+}
+
+model Strategy {
+  id                 String        @id @default(cuid())
+  runId              String
+  run                DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  vaultKey           String
+  label              String
+  address            String
+  capBps             Int
+  targetBps          Int
+  autoManaged        Boolean
+  isPanicked         Boolean
+  totalManagedAssets String
+  createdAt          DateTime      @default(now())
+
+  @@index([runId])
+  @@index([runId, vaultKey])
+  @@unique([runId, address])
+}
+
+model VaultSnapshot {
+  id                String        @id @default(cuid())
+  runId             String
+  run               DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  vaultKey          String
+  totalAssets       String
+  idleAssets        String
+  totalSupply       String
+  pricePerShare     String
+  totalQueuedAssets String
+  paused            Boolean
+  nextSettleId      String
+  withdrawalCounter String
+  createdAt         DateTime      @default(now())
+
+  @@index([runId])
+  @@index([runId, vaultKey])
+}
+
+model DepositEvent {
+  id         String        @id @default(cuid())
+  runId      String
+  run        DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  vaultKey   String
+  actor      String
+  receiver   String
+  assetSymbol String
+  amount     String
+  note       String
+  createdAt  DateTime      @default(now())
+
+  @@index([runId])
+  @@index([runId, vaultKey])
+}
+
+model WithdrawalEvent {
+  id        String        @id @default(cuid())
+  runId     String
+  run       DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  vaultKey  String
+  actor     String
+  receiver  String
+  queued    Boolean
+  queueId   String?
+  shares    String
+  netAssets String
+  fee       String
+  note      String
+  createdAt DateTime      @default(now())
+
+  @@index([runId])
+  @@index([runId, vaultKey])
+}
