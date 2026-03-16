@@ -36,7 +36,8 @@
   --muted: rgba(255, 255, 255, 0.06);
   --muted-foreground: #94a3b8;
   --accent: rgba(255, 246, 75, 0.12);
-  --accent-foreground: #f8fafc;
+  --accent-foreground: #020305;
+  --accent-fg: #020305;
   --destructive: oklch(0.577 0.245 27.325);
   --border: rgba(241, 245, 249, 0.12);
   --input: rgba(241, 245, 249, 0.12);
@@ -79,6 +80,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-accent-fg: var(--accent-fg);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -497,6 +499,7 @@ main {
   --fg-dim: #475569;
 
   --accent: #FFF64B;
+  --accent-fg: #020305;
   --accent-deep: #d4cc2a;
   --accent-soft: rgba(255, 246, 75, 0.4);
   --accent-subtle: rgba(255, 246, 75, 0.08);
@@ -526,6 +529,10 @@ main {
 .g-text-accent {
   color: var(--accent);
   text-shadow: 0 0 30px rgba(255, 246, 75, 0.3);
+}
+
+.g-on-accent {
+  color: #020305 !important;
 }
 
 .g-text-gradient {
@@ -762,6 +769,33 @@ main {
   justify-content: space-between;
 }
 
+.vault-anchor-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  position: sticky;
+  top: 5.6rem;
+  z-index: 40;
+}
+
+.vault-anchor-link {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: #cbd5e1;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  padding: 0.45rem 0.8rem;
+  text-transform: uppercase;
+  transition: all 180ms ease;
+}
+
+.vault-anchor-link:hover {
+  border-color: rgba(255, 246, 75, 0.4);
+  color: #fff64b;
+}
+
 .vault-search {
   align-items: center;
   background: rgba(255, 255, 255, 0.04);
@@ -794,6 +828,26 @@ main {
   font-size: 0.85rem;
   padding: 0.8rem 0.6rem;
   vertical-align: top;
+}
+
+.vault-exposure-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 90px;
+}
+
+.vault-exposure-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  height: 0.28rem;
+  overflow: hidden;
+}
+
+.vault-exposure-fill {
+  background: linear-gradient(90deg, rgba(255, 246, 75, 0.45), rgba(255, 246, 75, 0.95));
+  display: block;
+  height: 100%;
 }
 
 .vault-chart {
@@ -844,6 +898,10 @@ main {
     gap: 0.35rem;
     min-height: 150px;
     padding: 0.55rem;
+  }
+
+  .vault-anchor-rail {
+    top: 5rem;
   }
 
   .vault-table th,

@@ -4,10 +4,10 @@ import Grainient from "@/components/Grainient";
 import EcosystemSection from "@/components/glacier/EcosystemSection";
 import FeaturesSection from "@/components/glacier/FeaturesSection";
 import HeroSection from "@/components/glacier/HeroSection";
-import Navbar from "@/components/glacier/Navbar";
 import PartnersSection from "@/components/glacier/PartnersSection";
 import StarfieldCanvas from "@/components/glacier/StarfieldCanvas";
 import VaultShowcase from "@/components/glacier/VaultShowcase";
+import { UnifiedNavbar } from "@/components/navigation/UnifiedNavbar";
 
 export default function HomePage() {
   return (
@@ -30,7 +30,7 @@ export default function HomePage() {
         <div className="glacier-orb glacier-orb--cyan" />
       </div>
 
-      <Navbar />
+      <UnifiedNavbar variant="landing" />
 
       <main className="relative z-10 w-full overflow-x-clip">
         <HeroSection />
