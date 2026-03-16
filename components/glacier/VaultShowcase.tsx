@@ -1,121 +1,98 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { motion } from "framer-motion";
+import GlassCard from "./GlassCard";
 
-gsap.registerPlugin(ScrollTrigger);
-
-const allocations = [
-  { label: "Treasuries + credit", pct: 38 },
-  { label: "RWA carry sleeve", pct: 24 },
-  { label: "Cross-chain liquidity", pct: 20 },
-  { label: "Protected idle", pct: 18 },
-];
-
-const signals = [
-  { label: "Governance", value: "Approved", color: "#4ade80" },
-  { label: "Guardian", value: "Protected", color: "var(--accent-soft)" },
-  { label: "Queue", value: "Open", color: "var(--accent)" },
+const strategyMetrics = [
+  { label: "Strategy Multi-Sig", value: "Verified", detail: "3/5 Approved", type: "Security" },
+  { label: "Buffer Management", value: "Active", detail: "18.4% Liquid", type: "Liquidity" },
+  { label: "Guardian Heartbeat", value: "Nominal", detail: "Every 12s", type: "Monitoring" },
+  { label: "Exit Queue", value: "Uncongested", detail: "2.8x Coverage", type: "Withdrawal" },
 ];
 
 export default function VaultShowcase() {
-  const sectionRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.from(".vault-hero-card", {
-        opacity: 0, y: 60, duration: 1,
-        scrollTrigger: { trigger: ".vault-hero-card", start: "top 85%" },
-      });
-      gsap.utils.toArray<HTMLElement>(".vault-side").forEach((el, i) => {
-        gsap.from(el, {
-          opacity: 0, x: i % 2 === 0 ? -40 : 40, duration: 0.8,
-          scrollTrigger: { trigger: el, start: "top 85%" },
-        });
-      });
-      gsap.utils.toArray<HTMLElement>(".alloc-bar-fill").forEach((bar) => {
-        gsap.from(bar, {
-          width: 0, duration: 1.2, ease: "power2.out",
-          scrollTrigger: { trigger: bar, start: "top 90%" },
-        });
-      });
-    }, sectionRef);
-    return () => ctx.revert();
-  }, []);
-
   return (
-    <section ref={sectionRef} className="relative z-10 py-32 lg:py-40">
-      <div className="g-section">
-        <div className="text-center mb-16">
-          <p className="g-label mx-auto mb-6">
-            <span className="w-[5px] h-[5px] rounded-full bg-[var(--accent)] shadow-[0_0_6px_var(--accent-glow)]" />
-            Flagship Vault
-          </p>
-          <h2 className="text-3xl md:text-5xl font-bold text-white">Polaris Prime</h2>
-          <p className="text-[var(--fg-muted)] mt-3 text-lg">Flagship governed vault for capital that values controlled deployment.</p>
-        </div>
+    <section className="glacier-section py-32 relative overflow-hidden">
+      <div className="glacier-container">
+        <div className="flex flex-col lg:flex-row gap-20 items-center">
+          <div className="lg:w-1/2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 1 }}
+            >
+              <span className="g-label mb-8">System Intelligence</span>
+              <h2 className="text-5xl md:text-6xl font-black text-white mb-8 tracking-tighter leading-[0.95]">
+                Structured for <br />
+                <span className="g-text-accent text-glow">Deterministic Yield</span>
+              </h2>
+              <p className="text-slate-400 text-xl leading-relaxed mb-12">
+                We replace ambiguous farming with structured capital deployment. 
+                Monitor performance and safety signals through a unified audit-ready interface.
+              </p>
 
-        <div className="vault-hero-card g-glass-strong p-8 md:p-12 mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-6 mb-10">
-            <div>
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase tracking-wider font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                Healthy
-              </span>
-            </div>
-            <span className="text-[var(--fg-dim)] text-xs tracking-wider uppercase">Governance Approved</span>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-            {[
-              { value: "$482M", label: "TVL" },
-              { value: "8.6%", label: "Net APY" },
-              { value: "$1.084", label: "Share Price" },
-              { value: "4 min", label: "Guardian Latency" },
-            ].map((m) => (
-              <div key={m.label}>
-                <p className="text-3xl md:text-4xl font-bold text-white tracking-tight">{m.value}</p>
-                <p className="text-[11px] uppercase tracking-[0.1em] text-[var(--fg-muted)] mt-2">{m.label}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {strategyMetrics.map((m, idx) => (
+                  <GlassCard key={idx} className="p-8 group hover:border-accent/40" strong>
+                    <div className="flex justify-between items-start mb-6">
+                      <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-500">{m.type}</span>
+                      <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                    </div>
+                    <h4 className="text-white font-bold text-lg mb-1 group-hover:text-accent transition-colors">{m.label}</h4>
+                    <p className="text-2xl font-black text-white mb-2">{m.value}</p>
+                    <div className="bg-white/5 h-[1px] w-full my-4" />
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{m.detail}</p>
+                  </GlassCard>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="vault-side g-glass p-7 md:p-9">
-            <h3 className="text-base font-semibold text-white mb-6 tracking-wide">Strategy Exposure</h3>
-            <div className="space-y-5">
-              {allocations.map((a) => (
-                <div key={a.label}>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-[var(--fg-muted)]">{a.label}</span>
-                    <span className="text-[var(--accent-soft)] font-medium tabular-nums">{a.pct}%</span>
-                  </div>
-                  <div className="h-[6px] bg-white/[0.04] rounded-full overflow-hidden">
-                    <div
-                      className="alloc-bar-fill h-full rounded-full"
-                      style={{
-                        width: `${a.pct}%`,
-                        background: `linear-gradient(90deg, var(--accent-deep), var(--accent))`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+            </motion.div>
           </div>
 
-          <div className="vault-side g-glass p-7 md:p-9">
-            <h3 className="text-base font-semibold text-white mb-6 tracking-wide">Safety Signals</h3>
-            <div className="space-y-5">
-              {signals.map((s) => (
-                <div key={s.label} className="flex items-center justify-between py-3 border-b border-white/[0.04] last:border-0">
-                  <span className="text-[var(--fg-muted)] text-sm">{s.label}</span>
-                  <span className="text-sm font-semibold" style={{ color: s.color }}>{s.value}</span>
-                </div>
+          <div className="lg:w-1/2 w-full">
+            {/* Visual Dashboard Representation */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 1.2, ease: "circOut" }}
+              className="relative aspect-square max-w-[600px] mx-auto"
+            >
+              {/* Central Shield Graphic */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-full h-full border border-white/5 rounded-full animate-spin-slow opacity-50" />
+                <div className="absolute inset-20 border border-white/5 rounded-full animate-spin-reverse opacity-30" />
+                <div className="absolute inset-0 bg-accent/5 blur-[120px] rounded-full" />
+                
+                <GlassCard className="w-48 h-48 rounded-full flex items-center justify-center p-0 border-white/20" strong>
+                   <div className="text-center">
+                     <p className="text-xs font-bold text-accent uppercase tracking-[0.2em] mb-1">Status</p>
+                     <p className="text-2xl font-black text-white">SECURE</p>
+                   </div>
+                </GlassCard>
+              </div>
+
+              {/* Data points orbs */}
+              {[0, 90, 180, 270].map((angle, i) => (
+                <motion.div
+                  key={i}
+                  animate={{ 
+                    rotate: [0, 360],
+                  }}
+                  transition={{ 
+                    duration: 20 + i * 5,
+                    repeat: Infinity,
+                    ease: "linear"
+                  }}
+                  className="absolute inset-0 pointer-events-none"
+                >
+                  <div 
+                    className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                    style={{ transform: `rotate(${angle}deg) translateY(-250px)` }}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-accent shadow-[0_0_15px_var(--accent)]" />
+                  </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
         </div>
       </div>

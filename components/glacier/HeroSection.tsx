@@ -1,88 +1,111 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-gsap.registerPlugin(ScrollTrigger);
+import { useRef } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 
 export default function HeroSection() {
-  const sectionRef = useRef<HTMLElement>(null);
+  const containerRef = useRef<HTMLElement>(null);
+  
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"],
+  });
 
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-
-      tl.from(".hero-label", { opacity: 0, y: 20, duration: 0.8, delay: 0.3 })
-        .from(".hero-title span", { opacity: 0, y: 40, duration: 1, stagger: 0.12 }, "-=0.4")
-        .from(".hero-sub", { opacity: 0, y: 20, duration: 0.8 }, "-=0.5")
-        .from(".hero-cta", { opacity: 0, y: 20, duration: 0.7, stagger: 0.1 }, "-=0.4")
-        .from(".hero-stat", { opacity: 0, y: 30, duration: 0.7, stagger: 0.08 }, "-=0.3");
-
-      gsap.to(".hero-title", {
-        yPercent: -15,
-        opacity: 0.3,
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top top",
-          end: "bottom top",
-          scrub: true,
-        },
-      });
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
+  const y1 = useTransform(scrollYProgress, [0, 1], [0, -100]);
+  const y2 = useTransform(scrollYProgress, [0, 1], [0, -150]);
+  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
+  const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.95]);
 
   return (
     <section
-      ref={sectionRef}
-      className="relative min-h-screen flex flex-col items-center justify-center text-center z-10 pt-32 pb-20 px-6"
+      ref={containerRef}
+      className="relative min-h-screen flex flex-col items-center justify-center text-center z-10 pt-32 pb-20 px-6 overflow-hidden"
     >
       <div className="g-grid-overlay" />
 
-      <div className="relative z-10 max-w-4xl mx-auto">
-        <div className="hero-label g-label mb-10">
-          <span className="w-[6px] h-[6px] rounded-full bg-[var(--accent)] shadow-[0_0_8px_var(--accent-glow)]" />
-          Curated Vault Registry
-        </div>
+      <motion.div 
+        style={{ y: y1, opacity, scale }}
+        className="relative z-10 max-w-5xl mx-auto"
+      >
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="hero-label g-label mb-12 mx-auto"
+        >
+          <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent)] shadow-[0_0_15px_var(--accent)]" />
+          Constantlation Vault • Glacier Release
+        </motion.div>
 
-        <h1 className="hero-title text-[clamp(2.5rem,7vw,5.5rem)] font-bold leading-[1.05] tracking-[-0.02em] mb-8">
-          <span className="block text-white">Governed Capital,</span>
-          <span className="block g-text-accent">Cross-Chain Ready.</span>
-        </h1>
+        <motion.h1 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.4 }}
+          className="text-6xl md:text-8xl lg:text-[7.5rem] font-black mb-10 tracking-tight leading-[0.85] text-white"
+        >
+          Space-Grade <br />
+          <span className="g-text-accent">Yield Registry</span>
+        </motion.h1>
 
-        <p className="hero-sub text-[var(--fg-muted)] text-lg md:text-xl max-w-2xl mx-auto leading-relaxed mb-12">
-          Governance-approved strategies, visible guardian controls,
-          and transparent withdrawal mechanics — all in one registry.
-        </p>
+        <motion.p 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.6 }}
+          className="text-[var(--fg-muted)] text-xl md:text-2xl max-w-2xl mx-auto leading-relaxed mb-16"
+        >
+          A curated, high-performance vault registry for the Polkadot ecosystem. 
+          Grade-A security meets sophisticated multi-chain yield strategies.
+        </motion.p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-24">
-          <button className="hero-cta g-btn-primary">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.8 }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-32"
+        >
+          <button className="g-btn-primary group">
             Explore Vaults
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="ml-1">
-              <path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
           </button>
-          <button className="hero-cta g-btn-ghost">
-            How it works
+          <button className="g-btn-ghost">
+            Read Docs
           </button>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-8 max-w-3xl mx-auto">
+        <motion.div 
+          style={{ y: y2 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1, delay: 1 }}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-x-12 gap-y-12 max-w-4xl mx-auto"
+        >
           {[
-            { value: "$482M", label: "Total Value Locked" },
-            { value: "4 / 4", label: "Strategies Approved" },
+            { value: "$482M", label: "Total Locked" },
+            { value: "4 / 4", label: "Strat Approved" },
             { value: "18.4%", label: "Idle Buffer" },
             { value: "2.8x", label: "Queue Coverage" },
           ].map((stat) => (
-            <div key={stat.label} className="hero-stat">
-              <p className="text-3xl md:text-4xl font-bold text-white tracking-tight">{stat.value}</p>
-              <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--fg-muted)] mt-2 font-medium">{stat.label}</p>
+            <div key={stat.label} className="text-center">
+              <p className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-2">{stat.value}</p>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--fg-muted)] font-bold opacity-60">{stat.label}</p>
             </div>
           ))}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
+
+      {/* Hero ambient glow */}
+      <motion.div 
+        animate={{ 
+          scale: [1, 1.15, 1],
+          opacity: [0.03, 0.05, 0.03]
+        }}
+        transition={{ 
+          duration: 10,
+          repeat: Infinity,
+          ease: "linear"
+        }}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] bg-accent blur-[180px] rounded-full pointer-events-none" 
+      />
     </section>
   );
 }
