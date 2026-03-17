@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, Sora } from "next/font/google";
 
-import "./globals.css";
+import { Web3Providers } from "@/components/providers/Web3Providers";
 import { cn } from "@/lib/utils";
+import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,7 +31,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn(inter.variable, sora.variable)}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <Web3Providers>{children}</Web3Providers>
+      </body>
     </html>
   );
 }

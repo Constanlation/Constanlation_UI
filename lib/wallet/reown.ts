@@ -1,7 +1,7 @@
-import { QueryClient } from "@tanstack/react-query";
-import { createAppKit } from "@reown/appkit/react";
-import { astar, mainnet, moonbeam, moonriver, paseoPassetHub, sepolia } from "@reown/appkit/networks";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
+import { astar, mainnet, moonbeam, moonriver, paseoPassetHub, sepolia } from "@reown/appkit/networks";
+import { createAppKit } from "@reown/appkit/react";
+import { QueryClient } from "@tanstack/react-query";
 
 const reownProjectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID?.trim() ?? "";
 
