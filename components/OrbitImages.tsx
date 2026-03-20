@@ -1,5 +1,6 @@
-import { useMemo, useEffect, useRef, useState, ReactNode } from 'react';
-import { motion, useMotionValue, useTransform, animate, MotionValue } from 'motion/react';
+import { animate, motion, MotionValue, useMotionValue, useTransform } from 'motion/react';
+import Image from 'next/image';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 
 type OrbitShape =
   | 'ellipse'
@@ -232,13 +233,16 @@ export default function OrbitImages({
   const containerHeight = responsive ? 'auto' : (typeof height === 'number' ? height : (typeof width === 'number' ? width : 'auto'));
 
   const items = images.map((src, index) => (
-    <img
-      key={src}
-      src={src}
-      alt={`${altPrefix} ${index + 1}`}
-      draggable={false}
-      className="w-full h-full object-contain"
-    />
+    <div key={src} className="relative h-full w-full">
+      <Image
+        src={src}
+        alt={`${altPrefix} ${index + 1}`}
+        fill
+        sizes={`${itemSize}px`}
+        draggable={false}
+        className="object-contain"
+      />
+    </div>
   ));
 
   return (

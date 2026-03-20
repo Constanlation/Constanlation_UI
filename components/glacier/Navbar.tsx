@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-motion";
+import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function Navbar() {
   const { scrollY } = useScroll();

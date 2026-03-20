@@ -43,7 +43,7 @@ export default function HomePage() {
       <footer className="glacier-footer relative z-20">
         <div className="glacier-footer__inner">
           <div className="glacier-footer__brand group cursor-pointer">
-            <span className="glacier-footer__dot group-hover:scale-150 transition-transform duration-500" />
+            <span className="glacier-footer__dot glacier-footer__dot--interactive" />
             <span className="font-black tracking-tighter text-2xl">CONSTANTLATION</span>
           </div>
           <nav className="glacier-footer__links">

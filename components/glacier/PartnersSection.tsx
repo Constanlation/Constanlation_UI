@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { useRef } from "react";
 import OrbitImages from "../OrbitImages";
 
@@ -55,9 +56,11 @@ export default function PartnersSection() {
             centerContent={
               <div className="relative z-10 w-48 h-48 flex items-center justify-center">
                 <div className="absolute inset-0 bg-accent/20 blur-3xl rounded-full" />
-                <img 
-                  src="/ConstantlationLogo.png" 
-                  alt="Constantlation Logo" 
+                <Image
+                  src="/ConstantlationLogo.png"
+                  alt="Constantlation Logo"
+                  width={128}
+                  height={128}
                   className="w-32 h-auto relative z-10 filter drop-shadow-[0_0_30px_rgba(255,246,75,0.4)]"
                 />
               </div>
