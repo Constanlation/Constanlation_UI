@@ -35,9 +35,9 @@ export default function HomePage() {
       <main className="relative z-10 w-full overflow-x-clip">
         <HeroSection />
         <PartnersSection />
+        <EcosystemSection />
         <FeaturesSection />
         <VaultShowcase />
-        <EcosystemSection />
       </main>
 
       <footer className="glacier-footer relative z-20">

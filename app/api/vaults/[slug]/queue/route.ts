@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
-import type { QueueEntry } from "@/lib/mock-data";
 import prisma from "@/lib/prisma";
 import { etaForQueueStatus, mapQueueStatus } from "@/lib/server/queue-status";
+import type { QueueEntry } from "@/lib/vaults/types";
 
 function toFiniteNumber(value: string | number | null | undefined): number {
   if (value === null || value === undefined) {

@@ -18,6 +18,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
       proposals: result.proposals,
       guardianControls: result.guardianControls,
       queue: result.queue,
+      warnings: result.warnings,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -29,6 +30,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
         proposals: [],
         guardianControls: [],
         queue: [],
+        warnings: [],
         error: message,
       },
       { status: 500 },

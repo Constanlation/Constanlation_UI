@@ -1,6 +1,6 @@
-import type { QueueEntry } from "@/lib/mock-data";
+type QueueStatus = "Pending" | "Partially Filled" | "Ready to Claim" | "Claimed";
 
-const STATUS_MAP: Record<string, QueueEntry["status"]> = {
+const STATUS_MAP: Record<string, QueueStatus> = {
   pending: "Pending",
   queued: "Pending",
   requested: "Pending",
@@ -12,6 +12,7 @@ const STATUS_MAP: Record<string, QueueEntry["status"]> = {
   claimable: "Ready to Claim",
   ready: "Ready to Claim",
   claimed: "Claimed",
+  redeemed: "Claimed",
   settled: "Claimed",
 };
 
@@ -19,12 +20,12 @@ function normalizeStatusKey(input: string): string {
   return input.trim().toLowerCase().replace(/[^a-z]/g, "");
 }
 
-export function mapQueueStatus(status: string): QueueEntry["status"] {
+export function mapQueueStatus(status: string): QueueStatus {
   const normalizedKey = normalizeStatusKey(status);
   return STATUS_MAP[normalizedKey] ?? "Pending";
 }
 
-export function etaForQueueStatus(status: QueueEntry["status"]): string {
+export function etaForQueueStatus(status: QueueStatus): string {
   if (status === "Ready to Claim") {
     return "Ready now";
   }

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
 import { AppPageFrame, FilterChip, KpiStrip, StatusPill } from "@/components/app/AppPrimitives";
-import { formatUsd, type VaultListRow } from "@/lib/mock-data";
+import { formatUsd } from "@/lib/utils";
+import type { VaultListRow } from "@/lib/vaults/types";
 
 type SortKey = "apy" | "tvl" | "risk";
 

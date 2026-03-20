@@ -1,8 +1,10 @@
-import type { PortfolioPosition, PortfolioWithdrawalRequest } from "@/lib/mock-data";
 import prisma from "@/lib/prisma";
+import type { PortfolioPosition, PortfolioWithdrawalRequest } from "@/lib/profile/portfolio";
+import { etaForQueueStatus, mapQueueStatus } from "@/lib/server/queue-status";
 
 interface DepositorPortfolioResult {
   runId: string | null;
+  queryState: "ok" | "no_run";
   positions: PortfolioPosition[];
   withdrawalRequests: PortfolioWithdrawalRequest[];
 }
@@ -16,34 +18,6 @@ function toFiniteNumber(value: string | number | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function mapQueueStatus(status: string): PortfolioWithdrawalRequest["status"] {
-  const normalized = status.trim().toLowerCase();
-
-  if (normalized.includes("claimed")) {
-    return "Claimed";
-  }
-  if (normalized.includes("ready") || normalized.includes("claimable")) {
-    return "Ready to Claim";
-  }
-  if (normalized.includes("partial")) {
-    return "Partially Filled";
-  }
-  return "Pending";
-}
-
-function etaForQueueStatus(status: PortfolioWithdrawalRequest["status"]): string {
-  if (status === "Ready to Claim") {
-    return "Ready now";
-  }
-  if (status === "Claimed") {
-    return "Completed";
-  }
-  if (status === "Partially Filled") {
-    return "~Soon";
-  }
-  return "~Pending";
-}
-
 export async function getDepositorPortfolioFromDb(address: string): Promise<DepositorPortfolioResult> {
   const run = await prisma.deploymentRun.findFirst({
     orderBy: { createdAt: "desc" },
@@ -51,7 +25,7 @@ export async function getDepositorPortfolioFromDb(address: string): Promise<Depo
   });
 
   if (!run) {
-    return { runId: null, positions: [], withdrawalRequests: [] };
+    return { runId: null, queryState: "no_run", positions: [], withdrawalRequests: [] };
   }
 
   const [vaults, deposits, withdrawals, queueStatuses] = await Promise.all([
@@ -166,6 +140,7 @@ export async function getDepositorPortfolioFromDb(address: string): Promise<Depo
 
   return {
     runId: run.id,
+    queryState: "ok",
     positions,
     withdrawalRequests,
   };

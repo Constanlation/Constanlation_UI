@@ -1,13 +1,14 @@
-import type {
-    ChainName,
-    GovernanceProposal,
-    GuardianControl,
-    QueueEntry,
-    VaultDetailData,
-    VaultListRow,
-} from "@/lib/mock-data";
 import prisma from "@/lib/prisma";
 import { etaForQueueStatus, isClaimedQueueStatus, mapQueueStatus } from "@/lib/server/queue-status";
+import { isValidEthereumAddress } from "@/lib/utils";
+import type {
+  ChainName,
+  GovernanceProposal,
+  GuardianControl,
+  QueueEntry,
+  VaultDetailData,
+  VaultListRow,
+} from "@/lib/vaults/types";
 
 interface VaultRowsFromDbResult {
   runId: string | null;
@@ -23,6 +24,7 @@ interface VaultDetailFromDbResult {
   proposals: GovernanceProposal[];
   guardianControls: GuardianControl[];
   queue: QueueEntry[];
+  warnings: string[];
 }
 
 function toFiniteNumber(value: string | number | null | undefined): number {
@@ -50,6 +52,15 @@ function shortAddress(address: string): string {
     return address;
   }
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function normalizeVaultContractAddress(value: string | null | undefined): string {
+  const normalized = value?.trim() ?? "";
+  if (normalized && isValidEthereumAddress(normalized)) {
+    return normalized;
+  }
+
+  return "0x0000000000000000000000000000000000000000";
 }
 
 function formatRelativeTime(input: Date): string {
@@ -377,8 +388,11 @@ export async function getVaultDetailFromDb(slug: string, runId?: string): Promis
       proposals: [],
       guardianControls: [],
       queue: [],
+      warnings: ["No deployment run found in the database."],
     };
   }
+
+  const warnings: string[] = [];
 
   const vault = await prisma.vault.findFirst({
     where: {
@@ -410,7 +424,13 @@ export async function getVaultDetailFromDb(slug: string, runId?: string): Promis
       proposals: [],
       guardianControls: [],
       queue: [],
+      warnings,
     };
+  }
+
+  const normalizedVaultAddress = normalizeVaultContractAddress(vault.address);
+  if (!vault.address?.trim() || !isValidEthereumAddress(vault.address.trim())) {
+    warnings.push("Vault contract address is missing or invalid in the database.");
   }
 
   const [strategies, snapshots, queueStatuses, deposits, withdrawals] = await Promise.all([
@@ -601,7 +621,7 @@ export async function getVaultDetailFromDb(slug: string, runId?: string): Promis
     timelockDuration: "Configured by governance",
     deploymentDate: vault.createdAt.toISOString().slice(0, 10),
     vaultVersion: "v1",
-    contractAddress: vault.address,
+    contractAddress: normalizedVaultAddress,
     feeModel: `${feePct.toFixed(2)}% withdrawal fee`,
   };
 
@@ -621,5 +641,6 @@ export async function getVaultDetailFromDb(slug: string, runId?: string): Promis
     proposals,
     guardianControls,
     queue,
+    warnings,
   };
 }

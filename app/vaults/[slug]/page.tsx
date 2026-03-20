@@ -3,24 +3,18 @@
 import { ArrowRightLeft, Landmark, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 
 import { AppPageFrame, KpiStrip, StatusPill, VaultLocalSubnav } from "@/components/app/AppPrimitives";
 import { ConnectWalletButton } from "@/components/wallet/ConnectWalletButton";
-import {
-  formatUsd,
-  getVaultBySlug,
-  getVaultGuardianControls,
-  getVaultProposals,
-  getVaultQueue,
-  getVaultStrategyNotes,
-  type GovernanceProposal,
-  type GuardianControl,
-  type QueueEntry,
-  type VaultDetailData,
-} from "@/lib/mock-data";
-import { isValidEthereumAddress } from "@/lib/utils";
+import { formatUsd, isValidEthereumAddress } from "@/lib/utils";
+import type {
+  GovernanceProposal,
+  GuardianControl,
+  QueueEntry,
+  VaultDetailData,
+} from "@/lib/vaults/types";
 import { normalizeWalletError } from "@/lib/wallet/error-display";
 import {
   claimWithdrawalById,
@@ -71,27 +65,31 @@ export default function VaultDetailPage() {
     queue: QueueEntry[];
   } | null>(null);
   const [dbQueueState, setDbQueueState] = useState<{ slug: string; queue: QueueEntry[] } | null>(null);
+  const [dbWarnings, setDbWarnings] = useState<{ slug: string; warnings: string[] } | null>(null);
+  const [isVaultLoading, setIsVaultLoading] = useState(true);
+  const [vaultError, setVaultError] = useState<string | null>(null);
 
-  const mockVault = useMemo(() => getVaultBySlug(params.slug), [params.slug]);
-  const vault = dbVaultState && dbVaultState.slug === params.slug ? dbVaultState.vault : mockVault;
+  const vault = dbVaultState && dbVaultState.slug === params.slug ? dbVaultState.vault : null;
   const strategyNotes =
     dbVaultState && dbVaultState.slug === params.slug
       ? dbVaultState.strategyNotes
-      : getVaultStrategyNotes(params.slug);
+      : [];
   const proposals =
     dbVaultState && dbVaultState.slug === params.slug
       ? dbVaultState.proposals
-      : getVaultProposals(params.slug);
+      : [];
   const guardianControls =
     dbVaultState && dbVaultState.slug === params.slug
       ? dbVaultState.guardianControls
-      : getVaultGuardianControls(params.slug);
+      : [];
   const queue =
     dbVaultState && dbVaultState.slug === params.slug
       ? dbVaultState.queue
       : dbQueueState && dbQueueState.slug === params.slug
       ? dbQueueState.queue
-      : getVaultQueue(params.slug);
+      : [];
+  const dbWarningsForSlug = dbWarnings && dbWarnings.slug === params.slug ? dbWarnings.warnings : [];
+  const hasValidVaultAddress = Boolean(vault?.contractAddress && isValidEthereumAddress(vault.contractAddress));
 
   useEffect(() => {
     let active = true;
@@ -100,6 +98,11 @@ export default function VaultDetailPage() {
       try {
         const response = await fetch(`/api/vaults/${params.slug}`, { cache: "no-store" });
         if (!response.ok) {
+          if (active) {
+            setVaultError("Unable to load vault details from indexed data.");
+            setDbVaultState(null);
+            setDbWarnings({ slug: params.slug, warnings: [] });
+          }
           return;
         }
 
@@ -109,9 +112,18 @@ export default function VaultDetailPage() {
           proposals?: GovernanceProposal[];
           guardianControls?: GuardianControl[];
           queue?: QueueEntry[];
+          warnings?: string[];
         };
 
-        if (!active || !payload.vault) {
+        if (!active) {
+          return;
+        }
+
+        setDbWarnings({ slug: params.slug, warnings: payload.warnings ?? [] });
+
+        if (!payload.vault) {
+          setVaultError("Vault not found in indexed data.");
+          setDbVaultState(null);
           return;
         }
 
@@ -123,8 +135,13 @@ export default function VaultDetailPage() {
           guardianControls: payload.guardianControls ?? [],
           queue: payload.queue ?? [],
         });
+        setVaultError(null);
       } catch {
-        // Keep mock fallback while DB/indexer rollout is in progress.
+        if (active) {
+          setVaultError("Unable to load vault details from indexed data.");
+          setDbVaultState(null);
+          setDbWarnings({ slug: params.slug, warnings: [] });
+        }
       }
     };
 
@@ -132,6 +149,9 @@ export default function VaultDetailPage() {
       try {
         const response = await fetch(`/api/vaults/${params.slug}/queue`, { cache: "no-store" });
         if (!response.ok) {
+          if (active) {
+            setDbQueueState(null);
+          }
           return;
         }
 
@@ -142,21 +162,51 @@ export default function VaultDetailPage() {
 
         setDbQueueState({ slug: params.slug, queue: payload.queue });
       } catch {
-        // Keep mock queue fallback while DB/indexer rollout is in progress.
+        if (active) {
+          setDbQueueState(null);
+        }
       }
     };
 
-    loadVault();
-    loadQueue();
+    setIsVaultLoading(true);
+    setVaultError(null);
+    void Promise.allSettled([loadVault(), loadQueue()]).finally(() => {
+      if (active) {
+        setIsVaultLoading(false);
+      }
+    });
 
     return () => {
       active = false;
     };
   }, [params.slug]);
 
+  if (isVaultLoading) {
+    return (
+      <AppPageFrame title="Loading Vault" subtitle="Fetching indexed vault details.">
+        <div className="g-glass p-6 text-slate-300">
+          <p>Loading vault details...</p>
+        </div>
+      </AppPageFrame>
+    );
+  }
+
+  if (vaultError) {
+    return (
+      <AppPageFrame title="Vault Unavailable" subtitle={vaultError}>
+        <div className="g-glass p-6 text-slate-300">
+          <p>Try the directory and pick another vault, then retry.</p>
+          <Link href="/vaults" className="mt-3 inline-flex text-accent hover:underline">
+            Back to vault directory
+          </Link>
+        </div>
+      </AppPageFrame>
+    );
+  }
+
   if (!vault) {
     return (
-      <AppPageFrame title="Vault Not Found" subtitle="This vault is unavailable in the current static registry.">
+      <AppPageFrame title="Vault Not Found" subtitle="This vault is unavailable in the current indexed dataset.">
         <div className="g-glass p-6 text-slate-300">
           <p>Try the directory and pick one of the available vaults.</p>
           <Link href="/vaults" className="mt-3 inline-flex text-accent hover:underline">
@@ -175,11 +225,11 @@ export default function VaultDetailPage() {
     isConnected &&
       address &&
       publicClient &&
-      isValidEthereumAddress(vault.contractAddress),
+      hasValidVaultAddress,
   );
 
   const buildActionContext = (): VaultActionContext => {
-    if (!address || !publicClient || !isValidEthereumAddress(vault.contractAddress)) {
+    if (!address || !publicClient || !hasValidVaultAddress) {
       throw new Error("Wallet or vault address is not ready for transaction.");
     }
 
@@ -205,7 +255,10 @@ export default function VaultDetailPage() {
           proposals?: GovernanceProposal[];
           guardianControls?: GuardianControl[];
           queue?: QueueEntry[];
+          warnings?: string[];
         };
+
+        setDbWarnings({ slug: params.slug, warnings: payload.warnings ?? [] });
 
         if (payload.vault) {
           setDbVaultState({
@@ -232,7 +285,7 @@ export default function VaultDetailPage() {
 
   const handlePrimaryAction = async () => {
     if (!canWrite) {
-      setActionStatus({ tone: "warn", text: "Connect wallet and ensure vault address is valid." });
+      setActionStatus({ tone: "warn", text: "Connect wallet and ensure vault contract address is valid." });
       return;
     }
 
@@ -270,7 +323,7 @@ export default function VaultDetailPage() {
 
   const handleClaim = (queueId: string) => {
     if (!canWrite) {
-      setActionStatus({ tone: "warn", text: "Connect wallet and ensure vault address is valid." });
+      setActionStatus({ tone: "warn", text: "Connect wallet and ensure vault contract address is valid." });
       return;
     }
 
@@ -287,7 +340,27 @@ export default function VaultDetailPage() {
         const context = buildActionContext();
         const hash = await claimWithdrawalById(context, parsedQueueId);
         setClaimedQueueIds((current) => (current.includes(queueId) ? current : [...current, queueId]));
-        setActionStatus({ tone: "good", text: `Claim confirmed: ${formatTxHashShort(hash)}` });
+        const persistResponse = await fetch("/api/profile/depositor", {
+          method: "PATCH",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            address,
+            queueId,
+            vaultKey: params.slug,
+            status: "claimed",
+          }),
+        });
+
+        if (!persistResponse.ok) {
+          setActionStatus({
+            tone: "warn",
+            text: "Claim confirmed, but local DB sync failed. It will update after index sync.",
+          });
+        } else {
+          setActionStatus({ tone: "good", text: `Claim confirmed: ${formatTxHashShort(hash)}` });
+        }
         await refreshVaultData();
       } catch (error) {
         const normalized = normalizeWalletError(error);
@@ -404,6 +477,17 @@ export default function VaultDetailPage() {
             <p>{tab === "deposit" ? "Estimated annual return" : "Estimated unlock value"}</p>
             <p className="mt-1 text-xl font-bold text-accent">{amount ? `${estimatedYearly.toFixed(2)} ${vault.asset}` : "-"}</p>
           </div>
+
+          {!hasValidVaultAddress ? (
+            <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-2">
+              <p className="text-xs font-semibold text-amber-100">
+                Vault contract address is unavailable for this run. Transactions are disabled until a valid address is registered.
+              </p>
+              {dbWarningsForSlug.length ? (
+                <p className="mt-1 text-[11px] text-amber-200/80">{dbWarningsForSlug.join(" ")}</p>
+              ) : null}
+            </div>
+          ) : null}
 
           {tab === "withdraw" ? (
             <div className="mt-4 grid grid-cols-2 gap-2 rounded-full border border-white/10 bg-white/5 p-1">

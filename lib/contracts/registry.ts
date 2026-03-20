@@ -32,17 +32,26 @@ export const polkadotTestnetRoleDefaults = {
   treasury: polkadotTestnetAddresses.roles.treasury,
 } as const;
 
+function pickPrimaryVault() {
+  const vaults = polkadotTestnetAddresses.vaults;
+  return vaults.find((vault) => vault.key === "dot-core")
+    ?? vaults.find((vault) => vault.key === "pvPASEO")
+    ?? vaults[0];
+}
+
+const primaryVault = pickPrimaryVault();
+
 export const polkadotTestnetContractDefaults = {
   network: polkadotTestnetAddresses.network,
   chainId: polkadotTestnetAddresses.chainId,
   factory: polkadotTestnetAddresses.contracts.VaultFactory,
   governanceManager:
-    polkadotTestnetAddresses.vaults[0]?.governanceManager ?? polkadotTestnetAddresses.contracts.GovernanceManager,
-  vault: polkadotTestnetAddresses.vaults[0]?.vault ?? polkadotTestnetAddresses.contracts.ParaVault,
+    primaryVault?.governanceManager ?? polkadotTestnetAddresses.contracts.GovernanceManager,
+  vault: primaryVault?.vault ?? polkadotTestnetAddresses.contracts.ParaVault,
   controller:
-    polkadotTestnetAddresses.vaults[0]?.automationController ??
+    primaryVault?.automationController ??
     polkadotTestnetAddresses.contracts.VaultAutomationController,
   strategy:
-    polkadotTestnetAddresses.vaults[0]?.strategyAddress ?? polkadotTestnetAddresses.contracts.MockYieldStrategy,
-  asset: polkadotTestnetAddresses.vaults[0]?.assetAddress ?? polkadotTestnetAddresses.contracts.MockERC20,
+    primaryVault?.strategyAddress ?? polkadotTestnetAddresses.contracts.MockYieldStrategy,
+  asset: primaryVault?.assetAddress ?? polkadotTestnetAddresses.contracts.MockERC20,
 } as const;

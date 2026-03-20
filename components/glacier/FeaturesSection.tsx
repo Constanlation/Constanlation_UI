@@ -1,11 +1,11 @@
 "use client";
 
 import {
-  motion,
-  useInView,
-  useReducedMotion,
-  useScroll,
-  useTransform,
+    motion,
+    useInView,
+    useReducedMotion,
+    useScroll,
+    useTransform,
 } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import GlassCard from "./GlassCard";

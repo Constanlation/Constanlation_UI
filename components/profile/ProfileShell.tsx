@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 
 import { AppPageFrame, KpiStrip, StatusPill } from "@/components/app/AppPrimitives";
@@ -7,14 +7,12 @@ import { ProfileRoleSwitcher } from "@/components/profile/ProfileRoleSwitcher";
 import { ConnectWalletButton } from "@/components/wallet/ConnectWalletButton";
 import { polkadotTestnetContractDefaults } from "@/lib/contracts/registry";
 import {
-  formatUsd,
-  portfolioPositions,
-  portfolioWithdrawalRequests,
   type PortfolioPosition,
   type PortfolioWithdrawalRequest,
-} from "@/lib/mock-data";
+} from "@/lib/profile/portfolio";
 import { RoleProfile, RoleSlug, humanizeRole } from "@/lib/profile/roles";
-import { isValidEthereumAddress } from "@/lib/utils";
+import { formatUsd, isValidEthereumAddress } from "@/lib/utils";
+import { getVaultBySlug, portfolioPositions, portfolioWithdrawalRequests } from "@/lib/mock-data";
 import {
   allocateToStrategy,
   claimWithdrawalById,
@@ -943,17 +941,28 @@ function DepositorWorkspace({ walletAddress }: { walletAddress?: string }) {
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
 
-  const [dbPositions, setDbPositions] = useState<PortfolioPosition[] | null>(null);
-  const [dbWithdrawalRequests, setDbWithdrawalRequests] = useState<PortfolioWithdrawalRequest[] | null>(null);
+  const [dbPositions, setDbPositions] = useState<PortfolioPosition[]>([]);
+  const [dbWithdrawalRequests, setDbWithdrawalRequests] = useState<PortfolioWithdrawalRequest[]>([]);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [portfolioError, setPortfolioError] = useState<string | null>(null);
+  const [portfolioQueryState, setPortfolioQueryState] = useState<string | null>(null);
   const [vaultAddressBySlug, setVaultAddressBySlug] = useState<Record<string, string>>({});
   const [claimingRequestId, setClaimingRequestId] = useState<string | null>(null);
+  const [locallyCompletedRequestIds, setLocallyCompletedRequestIds] = useState<string[]>([]);
   const [actionStatus, setActionStatus] = useState<{ tone: "neutral" | "good" | "warn"; text: string } | null>(null);
 
   useEffect(() => {
     let active = true;
 
     const loadPortfolio = async () => {
+      setPortfolioLoading(true);
+      setPortfolioError(null);
+
       if (!walletAddress) {
+        setDbPositions([]);
+        setDbWithdrawalRequests([]);
+        setPortfolioQueryState(null);
+        setPortfolioLoading(false);
         return;
       }
 
@@ -961,26 +970,41 @@ function DepositorWorkspace({ walletAddress }: { walletAddress?: string }) {
         const query = new URLSearchParams({ address: walletAddress });
         const response = await fetch(`/api/profile/depositor?${query.toString()}`, { cache: "no-store" });
         if (!response.ok) {
+          if (active) {
+            setPortfolioError("Unable to load depositor portfolio from database.");
+            setDbPositions([]);
+            setDbWithdrawalRequests([]);
+            setPortfolioQueryState(null);
+          }
           return;
         }
 
         const payload = (await response.json()) as {
           positions?: PortfolioPosition[];
           withdrawalRequests?: PortfolioWithdrawalRequest[];
+          queryState?: string;
+          error?: string;
         };
 
         if (!active) {
           return;
         }
 
-        if (payload.positions && payload.positions.length > 0) {
-          setDbPositions(payload.positions);
-        }
-        if (payload.withdrawalRequests) {
-          setDbWithdrawalRequests(payload.withdrawalRequests);
-        }
+        setDbPositions(Array.isArray(payload.positions) ? payload.positions : []);
+        setDbWithdrawalRequests(Array.isArray(payload.withdrawalRequests) ? payload.withdrawalRequests : []);
+        setPortfolioQueryState(payload.queryState ?? null);
+        setPortfolioError(payload.error ?? null);
       } catch {
-        // Keep mock fallback while DB/indexer rollout is in progress.
+        if (active) {
+          setPortfolioError("Unable to load depositor portfolio from database.");
+          setDbPositions([]);
+          setDbWithdrawalRequests([]);
+          setPortfolioQueryState(null);
+        }
+      } finally {
+        if (active) {
+          setPortfolioLoading(false);
+        }
       }
     };
 
@@ -991,14 +1015,14 @@ function DepositorWorkspace({ walletAddress }: { walletAddress?: string }) {
     };
   }, [walletAddress]);
 
-  const positions = useMemo(
-    () => (dbPositions && dbPositions.length > 0 ? dbPositions : portfolioPositions),
-    [dbPositions],
-  );
-  const withdrawalRequests = useMemo(
-    () => (dbWithdrawalRequests && dbWithdrawalRequests.length > 0 ? dbWithdrawalRequests : portfolioWithdrawalRequests),
-    [dbWithdrawalRequests],
-  );
+  const useMockFallback =
+    !portfolioLoading &&
+    !portfolioError &&
+    dbPositions.length === 0 &&
+    dbWithdrawalRequests.length === 0;
+
+  const positions = useMockFallback ? portfolioPositions : dbPositions;
+  const withdrawalRequests = useMockFallback ? portfolioWithdrawalRequests : dbWithdrawalRequests;
 
   useEffect(() => {
     let active = true;
@@ -1010,12 +1034,12 @@ function DepositorWorkspace({ walletAddress }: { walletAddress?: string }) {
           try {
             const response = await fetch(`/api/vaults/${slug}`, { cache: "no-store" });
             if (!response.ok) {
-              return [slug, ""] as const;
+              return [slug, getVaultBySlug(slug)?.contractAddress ?? ""] as const;
             }
             const payload = (await response.json()) as { vault?: { contractAddress?: string } };
-            return [slug, payload.vault?.contractAddress ?? ""] as const;
+            return [slug, payload.vault?.contractAddress ?? getVaultBySlug(slug)?.contractAddress ?? ""] as const;
           } catch {
-            return [slug, ""] as const;
+            return [slug, getVaultBySlug(slug)?.contractAddress ?? ""] as const;
           }
         }),
       );
@@ -1051,22 +1075,23 @@ function DepositorWorkspace({ walletAddress }: { walletAddress?: string }) {
       const query = new URLSearchParams({ address: walletAddress });
       const response = await fetch(`/api/profile/depositor?${query.toString()}`, { cache: "no-store" });
       if (!response.ok) {
+        setActionStatus({ tone: "warn", text: "Unable to refresh portfolio data from database." });
         return;
       }
 
       const payload = (await response.json()) as {
         positions?: PortfolioPosition[];
         withdrawalRequests?: PortfolioWithdrawalRequest[];
+        queryState?: string;
+        error?: string;
       };
 
-      if (payload.positions) {
-        setDbPositions(payload.positions);
-      }
-      if (payload.withdrawalRequests) {
-        setDbWithdrawalRequests(payload.withdrawalRequests);
-      }
+      setDbPositions(Array.isArray(payload.positions) ? payload.positions : []);
+      setDbWithdrawalRequests(Array.isArray(payload.withdrawalRequests) ? payload.withdrawalRequests : []);
+      setPortfolioQueryState(payload.queryState ?? null);
+      setPortfolioError(payload.error ?? null);
     } catch {
-      // Ignore refresh failures and keep currently loaded data.
+      setActionStatus({ tone: "warn", text: "Unable to refresh portfolio data from database." });
     }
   };
 
@@ -1097,8 +1122,7 @@ function DepositorWorkspace({ walletAddress }: { walletAddress?: string }) {
 
     const queueId = extractQueueId(request.id);
     if (queueId === null) {
-      setActionStatus({ tone: "good", text: `Claim marked as completed for demo: ${request.id}` });
-      await reloadPortfolio();
+      setActionStatus({ tone: "warn", text: `Invalid queue id from portfolio data: ${request.id}` });
       return;
     }
 
@@ -1107,6 +1131,19 @@ function DepositorWorkspace({ walletAddress }: { walletAddress?: string }) {
       setActionStatus({ tone: "neutral", text: "Submitting claim transaction..." });
       const context = buildActionContext(vaultAddress);
       const hash = await claimWithdrawalById(context, queueId);
+      await fetch("/api/profile/depositor", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: walletAddress ?? address,
+          queueId: request.id,
+          vaultKey: request.slug,
+          status: "claimed",
+        }),
+      });
+      setLocallyCompletedRequestIds((current) =>
+        current.includes(request.id) ? current : [...current, request.id],
+      );
       setActionStatus({ tone: "good", text: `Claim confirmed: ${hash}` });
       await reloadPortfolio();
     } catch (error) {
@@ -1120,11 +1157,32 @@ function DepositorWorkspace({ walletAddress }: { walletAddress?: string }) {
   const totalDeposited = positions.reduce((sum, row) => sum + row.depositedUsd, 0);
   const totalPnl = positions.reduce((sum, row) => sum + row.unrealizedPnlUsd, 0);
   const pending = positions.reduce((sum, row) => sum + row.pendingWithdrawUsd, 0);
+  const hasNoPortfolioData =
+    !portfolioLoading && !portfolioError && !useMockFallback && positions.length === 0 && withdrawalRequests.length === 0;
 
   return (
     <>
+      {portfolioLoading ? <p className="mt-4 text-sm text-slate-300">Loading portfolio data from database...</p> : null}
+      {portfolioError ? (
+        <div className="mt-2">
+          <StatusPill text={portfolioError} tone="warn" />
+        </div>
+      ) : null}
+      {useMockFallback ? (
+        <div className="mt-2">
+          <StatusPill text="Showing demo portfolio data while indexed events are syncing." tone="neutral" />
+        </div>
+      ) : null}
+
       <section className="g-glass mt-4 p-4 md:p-6">
         <h2 className="text-lg font-bold text-white">My Positions</h2>
+        {hasNoPortfolioData ? (
+          <p className="mt-2 text-sm text-slate-300">
+            {portfolioQueryState === "no_run"
+              ? "No indexed deployment run found yet. Portfolio data will appear after first index sync."
+              : "No positions or withdrawal requests found for this wallet yet."}
+          </p>
+        ) : null}
         <p className="mt-2 text-sm text-slate-300">
           Deposited {formatUsd(totalDeposited)} across active vault positions with {formatUsd(totalPnl)} unrealized performance and {formatUsd(pending)} pending exits.
         </p>
@@ -1157,6 +1215,13 @@ function DepositorWorkspace({ walletAddress }: { walletAddress?: string }) {
                   </td>
                 </tr>
               ))}
+              {positions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-sm text-slate-400">
+                    No active positions.
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -1192,9 +1257,9 @@ function DepositorWorkspace({ walletAddress }: { walletAddress?: string }) {
                   </td>
                   <td>{formatUsd(request.requestUsd)}</td>
                   <td>{request.eta}</td>
-                  <td>{request.status}</td>
+                  <td>{locallyCompletedRequestIds.includes(request.id) ? "Claimed" : request.status}</td>
                   <td>
-                    {request.status === "Ready to Claim" ? (
+                    {request.status === "Ready to Claim" && !locallyCompletedRequestIds.includes(request.id) ? (
                       <button
                         type="button"
                         className="rounded-full border border-accent bg-accent px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] g-on-accent transition hover:brightness-105"
@@ -1204,11 +1269,20 @@ function DepositorWorkspace({ walletAddress }: { walletAddress?: string }) {
                         {claimingRequestId === request.id ? "Claiming..." : "Claim"}
                       </button>
                     ) : (
-                      <span className="text-xs uppercase tracking-[0.14em] text-slate-400">Waiting</span>
+                      <span className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        {locallyCompletedRequestIds.includes(request.id) ? "Claimed" : "Waiting"}
+                      </span>
                     )}
                   </td>
                 </tr>
               ))}
+              {withdrawalRequests.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-sm text-slate-400">
+                    No withdrawal requests.
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

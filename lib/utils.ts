@@ -21,3 +21,11 @@ export function toChecksumAddress(value: string): string | null {
     return null
   }
 }
+
+export function formatUsd(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: value < 100 ? 2 : 0,
+  }).format(value)
+}

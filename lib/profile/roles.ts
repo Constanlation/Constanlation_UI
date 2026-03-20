@@ -1,5 +1,5 @@
 import { polkadotTestnetRoleDefaults } from "@/lib/contracts/registry";
-import { formatUsd, vaultRows } from "@/lib/mock-data";
+import { formatUsd } from "@/lib/utils";
 
 export type RoleSlug =
   | "factory-owner"
@@ -41,8 +41,8 @@ export interface RoleProfile {
   kpis: RoleKpi[];
 }
 
-const totalTvl = vaultRows.reduce((sum, row) => sum + row.tvl, 0);
-const avgQueueHours = Math.round(vaultRows.reduce((sum, row) => sum + row.queueDepthHours, 0) / vaultRows.length);
+const totalTvl = 33510000;
+const avgQueueHours = 15;
 
 export const roleProfiles: Record<RoleSlug, RoleProfile> = {
   "factory-owner": {
@@ -73,7 +73,7 @@ export const roleProfiles: Record<RoleSlug, RoleProfile> = {
       { label: "Direct write integration to registerVault", done: false },
     ],
     kpis: [
-      { label: "Ecosystems Registered", value: String(vaultRows.length), tone: "accent" },
+      { label: "Ecosystems Registered", value: "4", tone: "accent" },
       { label: "Total Registry TVL", value: formatUsd(totalTvl) },
       { label: "Pending Requests", value: "2" },
       { label: "Blocked Requests", value: "1" },

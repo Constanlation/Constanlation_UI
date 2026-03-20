@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { isValidEthereumAddress, toChecksumAddress } from "@/lib/utils";
 import { Prisma } from "@prisma/client";
 
 type JsonObject = Record<string, unknown>;
@@ -83,7 +84,6 @@ export async function POST(request: Request) {
     const shareSymbol = asString(requestedVault?.shareSymbol) ?? asString(deployRoles?.shareSymbol) ?? "SHARE";
     const vaultName = asString(requestedVault?.vaultName) ?? asString(deployRoles?.shareName);
     const vaultSymbol = asString(requestedVault?.vaultSymbol) ?? shareSymbol;
-    const vaultKey = asString(requestedVault?.vaultKey) ?? resolvedVaultAddress;
     const vaultScenario = asString(requestedVault?.scenario) ?? "default";
 
     const tokenName = asString(requestedToken?.name) ?? asString(deployRoles?.shareName) ?? "Unknown Asset";
@@ -97,7 +97,68 @@ export async function POST(request: Request) {
     const withdrawalFeeBps = asInteger(body.withdrawalFeeBps) ?? 0;
     const strategy = asObject(body.strategy);
     const controller = asObject(body.controller);
-    const controllerAddress = asString(controller?.address) ?? null;
+    const strategyAddress = asString(strategy?.address);
+    const controllerAddress = asString(controller?.address);
+
+    const invalidFields: string[] = [];
+    if (!isValidEthereumAddress(resolvedVaultAddress)) {
+      invalidFields.push("resolvedVaultAddress");
+    }
+    if (!isValidEthereumAddress(resolvedGovernanceManager)) {
+      invalidFields.push("resolvedGovernanceManager");
+    }
+    if (!isValidEthereumAddress(resolvedTokenAddress)) {
+      invalidFields.push("resolvedTokenAddress");
+    }
+
+    const normalizedVaultAddress = toChecksumAddress(resolvedVaultAddress);
+    const normalizedGovernanceManager = toChecksumAddress(resolvedGovernanceManager);
+    const normalizedTokenAddress = toChecksumAddress(resolvedTokenAddress);
+    const normalizedStrategist = strategist ? toChecksumAddress(strategist) : null;
+    const normalizedGuardian = guardian ? toChecksumAddress(guardian) : null;
+    const normalizedKeeper = keeper ? toChecksumAddress(keeper) : null;
+    const normalizedTreasury = treasury ? toChecksumAddress(treasury) : null;
+    const normalizedStrategyAddress = strategyAddress ? toChecksumAddress(strategyAddress) : null;
+    const normalizedControllerAddress = controllerAddress ? toChecksumAddress(controllerAddress) : null;
+
+    if (strategist && !normalizedStrategist) {
+      invalidFields.push("strategist");
+    }
+    if (guardian && !normalizedGuardian) {
+      invalidFields.push("guardian");
+    }
+    if (keeper && !normalizedKeeper) {
+      invalidFields.push("keeper");
+    }
+    if (treasury && !normalizedTreasury) {
+      invalidFields.push("treasury");
+    }
+    if (strategyAddress && !normalizedStrategyAddress) {
+      invalidFields.push("strategy.address");
+    }
+    if (controllerAddress && !normalizedControllerAddress) {
+      invalidFields.push("controller.address");
+    }
+
+    if (
+      invalidFields.length > 0 ||
+      !normalizedVaultAddress ||
+      !normalizedGovernanceManager ||
+      !normalizedTokenAddress
+    ) {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid Ethereum address fields in registration payload.",
+          invalidFields,
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const vaultKey = asString(requestedVault?.vaultKey) ?? normalizedVaultAddress;
 
     // Create DeploymentRun
     const createdRun = await prisma.deploymentRun.create({
@@ -116,7 +177,7 @@ export async function POST(request: Request) {
     await prisma.token.create({
       data: {
         runId: createdRun.id,
-        address: resolvedTokenAddress,
+        address: normalizedTokenAddress,
         name: tokenName,
         symbol: tokenSymbol,
         decimals: tokenDecimals,
@@ -129,10 +190,10 @@ export async function POST(request: Request) {
         runId: createdRun.id,
         vaultKey,
         scenario: vaultScenario,
-        address: resolvedVaultAddress,
-        governanceManager: resolvedGovernanceManager,
-        automationController: controllerAddress,
-        assetAddress: resolvedTokenAddress,
+        address: normalizedVaultAddress,
+        governanceManager: normalizedGovernanceManager,
+        automationController: normalizedControllerAddress,
+        assetAddress: normalizedTokenAddress,
         assetSymbol: tokenSymbol,
         assetDecimals: tokenDecimals,
         shareSymbol,
@@ -152,57 +213,57 @@ export async function POST(request: Request) {
 
     // Create RoleMembers
     const roleMembers = [];
-    if (strategist) {
+    if (normalizedStrategist) {
       roleMembers.push({
         id: crypto.randomUUID(),
         runId: createdRun.id,
-        contractAddress: resolvedGovernanceManager,
+        contractAddress: normalizedGovernanceManager,
         contractType: "GovernanceManager",
         roleId: "STRATEGIST_ROLE",
         roleName: "strategist",
-        account: strategist,
+        account: normalizedStrategist,
         grantedAtBlock: 0,
         revokedAtBlock: null,
         isActive: true,
       });
     }
-    if (guardian) {
+    if (normalizedGuardian) {
       roleMembers.push({
         id: crypto.randomUUID(),
         runId: createdRun.id,
-        contractAddress: resolvedGovernanceManager,
+        contractAddress: normalizedGovernanceManager,
         contractType: "GovernanceManager",
         roleId: "GUARDIAN_ROLE",
         roleName: "guardian",
-        account: guardian,
+        account: normalizedGuardian,
         grantedAtBlock: 0,
         revokedAtBlock: null,
         isActive: true,
       });
     }
-    if (keeper) {
+    if (normalizedKeeper) {
       roleMembers.push({
         id: crypto.randomUUID(),
         runId: createdRun.id,
-        contractAddress: resolvedVaultAddress,
+        contractAddress: normalizedVaultAddress,
         contractType: "ParaVault",
         roleId: "KEEPER_ROLE",
         roleName: "keeper",
-        account: keeper,
+        account: normalizedKeeper,
         grantedAtBlock: 0,
         revokedAtBlock: null,
         isActive: true,
       });
     }
-    if (treasury) {
+    if (normalizedTreasury) {
       roleMembers.push({
         id: crypto.randomUUID(),
         runId: createdRun.id,
-        contractAddress: resolvedGovernanceManager,
+        contractAddress: normalizedGovernanceManager,
         contractType: "GovernanceManager",
         roleId: "TREASURY_ROLE",
         roleName: "treasury",
-        account: treasury,
+        account: normalizedTreasury,
         grantedAtBlock: 0,
         revokedAtBlock: null,
         isActive: true,
@@ -213,14 +274,13 @@ export async function POST(request: Request) {
     }
 
     // Create Strategy if present
-    const strategyAddress = asString(strategy?.address);
-    if (strategy && strategyAddress) {
+    if (strategy && normalizedStrategyAddress) {
       await prisma.strategy.create({
         data: {
           runId: createdRun.id,
           vaultKey,
           label: asString(strategy.label) ?? "",
-          address: strategyAddress,
+          address: normalizedStrategyAddress,
           capBps: asInteger(strategy.capBps) ?? 0,
           targetBps: asInteger(strategy.targetBps) ?? 0,
           autoManaged: asBoolean(strategy.autoManaged) ?? false,
