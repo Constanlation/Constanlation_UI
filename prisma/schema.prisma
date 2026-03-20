@@ -4,46 +4,52 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-//   url      = env("DATABASE_URL")
 }
 
 model DeploymentRun {
-  id             String            @id @default(cuid())
-  runLabel       String            @unique
-  generatedAt    DateTime
-  network        String
-  chainId        Int
-  persistMode    String
-  factoryAddress String
-  roles          Json
-  createdAt      DateTime          @default(now())
-
-  tokens         Token[]
-  vaults         Vault[]
-  strategies     Strategy[]
-  snapshots      VaultSnapshot[]
-  deposits       DepositEvent[]
-  withdrawals    WithdrawalEvent[]
+  id                    String                  @id @default(cuid())
+  runLabel              String                  @unique
+  generatedAt           DateTime
+  network               String
+  chainId               Int
+  persistMode           String
+  factoryAddress        String
+  roles                 Json
+  createdAt             DateTime                @default(now())
+  AutomationEvent       AutomationEvent[]
+  deposits              DepositEvent[]
+  GovernanceEvent       GovernanceEvent[]
+  PricePerShareSnapshot PricePerShareSnapshot[]
+  QueueEvent            QueueEvent[]
+  RoleMember            RoleMember[]
+  strategies            Strategy[]
+  StrategySnapshot      StrategySnapshot[]
+  tokens                Token[]
+  UserActivity          UserActivity[]
+  vaults                Vault[]
+  VaultConfigSnapshot   VaultConfigSnapshot[]
+  VaultEvent            VaultEvent[]
+  snapshots             VaultSnapshot[]
+  withdrawals           WithdrawalEvent[]
 }
 
 model Token {
   id        String        @id @default(cuid())
   runId     String
-  run       DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   address   String
   name      String
   symbol    String
   decimals  Int
   createdAt DateTime      @default(now())
+  run       DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
-  @@index([runId])
   @@unique([runId, address])
+  @@index([runId])
 }
 
 model Vault {
   id                   String        @id @default(cuid())
   runId                String
-  run                  DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   vaultKey             String
   scenario             String
   address              String
@@ -63,16 +69,18 @@ model Vault {
   nextSettleId         String
   withdrawalCounter    String
   createdAt            DateTime      @default(now())
+  vaultName            String?
+  vaultSymbol          String?
+  run                  DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
-  @@index([runId])
   @@unique([runId, vaultKey])
   @@unique([runId, address])
+  @@index([runId])
 }
 
 model Strategy {
   id                 String        @id @default(cuid())
   runId              String
-  run                DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   vaultKey           String
   label              String
   address            String
@@ -82,16 +90,16 @@ model Strategy {
   isPanicked         Boolean
   totalManagedAssets String
   createdAt          DateTime      @default(now())
+  run                DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
+  @@unique([runId, address])
   @@index([runId])
   @@index([runId, vaultKey])
-  @@unique([runId, address])
 }
 
 model VaultSnapshot {
   id                String        @id @default(cuid())
   runId             String
-  run               DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   vaultKey          String
   totalAssets       String
   idleAssets        String
@@ -102,22 +110,23 @@ model VaultSnapshot {
   nextSettleId      String
   withdrawalCounter String
   createdAt         DateTime      @default(now())
+  run               DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([runId])
   @@index([runId, vaultKey])
 }
 
 model DepositEvent {
-  id         String        @id @default(cuid())
-  runId      String
-  run        DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  vaultKey   String
-  actor      String
-  receiver   String
+  id          String        @id @default(cuid())
+  runId       String
+  vaultKey    String
+  actor       String
+  receiver    String
   assetSymbol String
-  amount     String
-  note       String
-  createdAt  DateTime      @default(now())
+  amount      String
+  note        String
+  createdAt   DateTime      @default(now())
+  run         DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([runId])
   @@index([runId, vaultKey])
@@ -126,7 +135,6 @@ model DepositEvent {
 model WithdrawalEvent {
   id        String        @id @default(cuid())
   runId     String
-  run       DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   vaultKey  String
   actor     String
   receiver  String
@@ -137,7 +145,294 @@ model WithdrawalEvent {
   fee       String
   note      String
   createdAt DateTime      @default(now())
+  run       DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([runId])
   @@index([runId, vaultKey])
+}
+
+model AssetMetadata {
+  id           String   @id
+  tokenAddress String   @unique
+  name         String
+  symbol       String
+  decimals     Int
+  logoUrl      String?
+  description  String?
+  externalRef  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+
+  @@index([symbol])
+}
+
+model AutomationEvent {
+  id                String        @id
+  runId             String
+  controllerAddress String
+  vaultAddress      String
+  vaultKey          String
+  eventType         String
+  blockNumber       BigInt
+  transactionHash   String
+  logIndex          Int
+  timestamp         BigInt
+  executor          String?
+  strategy          String?
+  data              Json
+  createdAt         DateTime      @default(now())
+  DeploymentRun     DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([controllerAddress, transactionHash, logIndex])
+  @@index([blockNumber])
+  @@index([controllerAddress])
+  @@index([eventType])
+  @@index([runId])
+  @@index([strategy])
+  @@index([vaultAddress])
+  @@index([vaultKey])
+}
+
+model GovernanceEvent {
+  id                String        @id
+  runId             String
+  governanceAddress String
+  vaultAddress      String?
+  vaultKey          String?
+  eventType         String
+  blockNumber       BigInt
+  transactionHash   String
+  logIndex          Int
+  timestamp         BigInt
+  actor             String?
+  data              Json
+  createdAt         DateTime      @default(now())
+  DeploymentRun     DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([governanceAddress, transactionHash, logIndex])
+  @@index([blockNumber])
+  @@index([eventType])
+  @@index([governanceAddress])
+  @@index([runId])
+  @@index([vaultAddress])
+  @@index([vaultKey])
+}
+
+model IndexerCursor {
+  id                 String   @id
+  streamKey          String   @unique
+  contractAddress    String
+  lastScannedBlock   BigInt
+  lastFinalizedBlock BigInt
+  updatedAt          DateTime
+
+  @@index([contractAddress])
+}
+
+model PricePerShareSnapshot {
+  id             String        @id
+  runId          String
+  vaultAddress   String
+  vaultKey       String
+  pricePerShare  String
+  totalAssets    String
+  idleAssets     String
+  totalSupply    String
+  blockNumber    BigInt
+  blockTimestamp BigInt
+  createdAt      DateTime      @default(now())
+  DeploymentRun  DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([vaultAddress, blockNumber])
+  @@index([blockNumber])
+  @@index([runId])
+  @@index([vaultAddress])
+  @@index([vaultKey])
+}
+
+model QueueEntryStatus {
+  id                   String   @id
+  vaultAddress         String
+  vaultKey             String
+  queueId              String
+  owner                String
+  receiver             String
+  shares               String
+  netAssets            String
+  fee                  String
+  status               String
+  queuedAtBlock        BigInt
+  claimedAtBlock       BigInt?
+  requestPricePerShare String?
+  updatedAt            DateTime
+  createdAt            DateTime @default(now())
+
+  @@unique([vaultAddress, queueId])
+  @@index([owner])
+  @@index([queueId])
+  @@index([receiver])
+  @@index([status])
+  @@index([vaultAddress])
+  @@index([vaultKey])
+}
+
+model QueueEvent {
+  id                String        @id
+  runId             String
+  vaultAddress      String
+  vaultKey          String
+  queueId           String
+  owner             String
+  receiver          String
+  eventType         String
+  blockNumber       BigInt
+  transactionHash   String
+  logIndex          Int
+  timestamp         BigInt
+  shares            String?
+  netAssets         String?
+  fee               String?
+  assetsTransferred String?
+  createdAt         DateTime      @default(now())
+  DeploymentRun     DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([vaultAddress, transactionHash, logIndex])
+  @@index([blockNumber])
+  @@index([eventType])
+  @@index([owner])
+  @@index([queueId])
+  @@index([receiver])
+  @@index([runId])
+  @@index([vaultAddress])
+  @@index([vaultKey])
+}
+
+model RoleMember {
+  id              String        @id
+  runId           String
+  contractAddress String
+  contractType    String
+  roleId          String
+  roleName        String
+  account         String
+  grantedAtBlock  BigInt
+  revokedAtBlock  BigInt?
+  isActive        Boolean
+  createdAt       DateTime      @default(now())
+  DeploymentRun   DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([contractAddress, roleId, account, grantedAtBlock])
+  @@index([account])
+  @@index([contractAddress])
+  @@index([isActive])
+  @@index([roleId])
+  @@index([roleName])
+  @@index([runId])
+}
+
+model StrategyMetadata {
+  id              String   @id
+  strategyAddress String   @unique
+  name            String
+  description     String?
+  destination     String?
+  yieldSource     String?
+  iconUrl         String?
+  riskProfile     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime
+}
+
+model StrategySnapshot {
+  id                 String        @id
+  runId              String
+  vaultAddress       String
+  vaultKey           String
+  strategyAddress    String
+  totalManagedAssets String
+  isApproved         Boolean
+  isActive           Boolean
+  isPanicked         Boolean
+  capBps             Int
+  targetBps          Int
+  autoManaged        Boolean
+  blockNumber        BigInt
+  createdAt          DateTime      @default(now())
+  DeploymentRun      DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([blockNumber])
+  @@index([runId])
+  @@index([strategyAddress])
+  @@index([vaultAddress])
+  @@index([vaultKey])
+}
+
+model UserActivity {
+  id              String        @id
+  runId           String
+  vaultAddress    String
+  vaultKey        String
+  userAddress     String
+  actionType      String
+  transactionHash String
+  blockNumber     BigInt
+  timestamp       BigInt
+  assetsAmount    String?
+  sharesAmount    String?
+  feeAmount       String?
+  queueId         String?
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  DeploymentRun   DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([vaultAddress, userAddress, transactionHash, actionType])
+  @@index([actionType])
+  @@index([blockNumber])
+  @@index([runId])
+  @@index([userAddress])
+  @@index([vaultAddress])
+  @@index([vaultKey])
+}
+
+model VaultConfigSnapshot {
+  id                String        @id
+  runId             String
+  vaultAddress      String
+  vaultKey          String
+  minIdleBps        Int
+  rebalanceSlackBps Int
+  paused            Boolean
+  needsRebalance    Boolean
+  blockNumber       BigInt
+  createdAt         DateTime      @default(now())
+  DeploymentRun     DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([vaultAddress, blockNumber])
+  @@index([blockNumber])
+  @@index([runId])
+  @@index([vaultAddress])
+  @@index([vaultKey])
+}
+
+model VaultEvent {
+  id              String        @id
+  runId           String
+  vaultAddress    String
+  vaultKey        String
+  eventType       String
+  blockNumber     BigInt
+  transactionHash String
+  logIndex        Int
+  timestamp       BigInt
+  actor           String?
+  data            Json
+  createdAt       DateTime      @default(now())
+  DeploymentRun   DeploymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([vaultAddress, transactionHash, logIndex])
+  @@index([blockNumber])
+  @@index([eventType])
+  @@index([runId])
+  @@index([vaultAddress])
+  @@index([vaultKey])
 }
