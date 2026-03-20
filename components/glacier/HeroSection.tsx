@@ -34,7 +34,7 @@ export default function HeroSection() {
           className="hero-label g-label mb-12 mx-auto"
         >
           <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent)] shadow-[0_0_15px_var(--accent)]" />
-          Constantlation Vault • Glacier Release
+          Constantlation Vault • Governed Registry
         </motion.div>
 
         <motion.h1 
@@ -43,8 +43,8 @@ export default function HeroSection() {
           transition={{ duration: 1, delay: 0.4 }}
           className="text-6xl md:text-8xl lg:text-[7.5rem] font-black mb-10 tracking-tight leading-[0.85] text-white"
         >
-          Space-Grade <br />
-          <span className="g-text-accent">Yield Registry</span>
+          Trusted Yield <br />
+          <span className="g-text-accent">for Polkadot Capital</span>
         </motion.h1>
 
         <motion.p 
@@ -53,8 +53,8 @@ export default function HeroSection() {
           transition={{ duration: 1, delay: 0.6 }}
           className="text-[var(--fg-muted)] text-xl md:text-2xl max-w-2xl mx-auto leading-relaxed mb-16"
         >
-          A curated, high-performance vault registry for the Polkadot ecosystem. 
-          Grade-A security meets sophisticated multi-chain yield strategies.
+          Deploy into a curated vault registry with governance-approved strategies,
+          visible guardian controls, and transparent exit mechanics built for reliable execution.
         </motion.p>
 
         <motion.div 
@@ -68,7 +68,7 @@ export default function HeroSection() {
             <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
           </button>
           <button className="g-btn-ghost">
-            Read Docs
+            View Documentation
           </button>
         </motion.div>
 
@@ -80,10 +80,10 @@ export default function HeroSection() {
           className="grid grid-cols-2 lg:grid-cols-4 gap-x-12 gap-y-12 max-w-4xl mx-auto"
         >
           {[
-            { value: "$482M", label: "Total Locked" },
-            { value: "4 / 4", label: "Strat Approved" },
-            { value: "18.4%", label: "Idle Buffer" },
-            { value: "2.8x", label: "Queue Coverage" },
+            { value: "$482M", label: "Total Value Secured" },
+            { value: "4 / 4", label: "Strategies Approved" },
+            { value: "18.4%", label: "Liquidity Buffer" },
+            { value: "2.8x", label: "Exit Queue Coverage" },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
               <p className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-2">{stat.value}</p>

@@ -1,0 +1,33 @@
+{
+  "id": "contracts_factory_VaultFactory_sol__IGovernanceManagerDeployer",
+  "contractName": "IGovernanceManagerDeployer",
+  "sourceName": "contracts/factory/VaultFactory.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "admin_",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "treasury_",
+          "type": "address"
+        }
+      ],
+      "name": "deployGovernanceManager",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "governanceManager",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x"
+}

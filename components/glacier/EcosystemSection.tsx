@@ -23,13 +23,13 @@ export default function EcosystemSection() {
           transition={{ duration: 1 }}
           className="ecosystem-header text-center mb-24"
         >
-          <span className="g-label mb-6">Polkadot Core</span>
+          <span className="g-label mb-6">Ecosystem Connectivity</span>
           <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tighter text-white">
-            Seamlessly <span className="g-text-accent">Integrated</span>
+            Integrated Across <span className="g-text-accent">Polkadot Primitives</span>
           </h2>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
-            Constantlation connects with the leading protocols in the Dotsama 
-            ecosystem to provide unified liquidity and yield opportunities.
+            Constantlation connects treasury-grade vault operations to the leading
+            Dotsama protocols, enabling coordinated liquidity and resilient yield paths.
           </p>
         </motion.div>
 

@@ -54,7 +54,7 @@ export default function HomePage() {
           </nav>
           <div className="flex flex-col items-center gap-4">
             <p className="glacier-footer__copy">
-              © 2026 Constantlation Vault · Space-Grade Engineering
+              © 2026 Constantlation Vault · Governed Infrastructure for Digital Assets
             </p>
             <div className="flex gap-4 opacity-30">
               <span className="w-1 h-1 rounded-full bg-white" />

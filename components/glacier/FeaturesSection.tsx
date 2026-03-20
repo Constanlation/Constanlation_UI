@@ -13,29 +13,29 @@ import GlassCard from "./GlassCard";
 const features = [
   {
     num: "01",
-    title: "Layer-Zero Registry",
-    desc: "Governed admission protocols for the Polkadot Relay and parachains. Only the most robust strategies pass our multi-signature verification layers.",
+    title: "Curated Strategy Registry",
+    desc: "Every strategy enters through governance review and multi-signature checks before capital is admitted, reducing avoidable protocol risk.",
     stat: "4/4 Approved",
     tag: "Security",
   },
   {
     num: "02",
-    title: "Guardian Intervention",
-    desc: "Real-time circuit breakers monitored by institutional guardians. Transparent emergency pause functions that are visible on-chain.",
+    title: "Active Guardian Controls",
+    desc: "Institutional guardians monitor real-time conditions and can trigger clearly defined circuit breakers with full on-chain visibility.",
     stat: "14ms Latency",
     tag: "Governance",
   },
   {
     num: "03",
-    title: "Deterministic Queues",
-    desc: "Mathematic withdrawal priority based on tenure and strategy liquidity. No exit-friction surprises, just clear execution timelines.",
+    title: "Predictable Exit Queues",
+    desc: "Withdrawal prioritization follows transparent rules tied to liquidity and tenure, giving participants clear expectations during redemptions.",
     stat: "2.8x Coverage",
     tag: "Liquidity",
   },
   {
     num: "04",
-    title: "Multi-Chain Yield",
-    desc: "Sophisticated cross-chain yield farming across Astar, Moonbeam, and Hydration. Unified capital efficiency with isolated risk buffers.",
+    title: "Cross-Chain Capital Efficiency",
+    desc: "Allocate across leading Polkadot ecosystem venues with isolated buffers and unified oversight to improve risk-adjusted yield outcomes.",
     stat: "18.4% Buffer",
     tag: "Strategy",
   },
@@ -150,10 +150,10 @@ export default function FeaturesSection() {
             transition={{ duration: 1 }}
             className="text-left"
           >
-            <span className="g-label mb-6">Built for Certainty</span>
+            <span className="g-label mb-6">Built for Confidence</span>
             <h2 className="text-4xl md:text-6xl lg:text-7xl font-black text-white leading-[0.9] tracking-tighter">
-              Bespoke Architecture <br />
-              <span className="g-text-accent">Transparent Controls</span>
+              Institutional Design <br />
+              <span className="g-text-accent">Transparent Operations</span>
             </h2>
           </motion.div>
         </div>
@@ -203,7 +203,7 @@ export default function FeaturesSection() {
 
                 <div className="pt-8 border-t border-white/5">
                   <p className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-2">
-                    Registry Metric
+                    Control Metric
                   </p>
                   <p className="text-2xl font-black text-white">
                     {feature.stat}

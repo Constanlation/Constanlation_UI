@@ -25,13 +25,13 @@ export default function PartnersSection() {
           transition={{ duration: 0.7, ease: "easeOut" }}
           className="partners-header mb-20 max-w-2xl"
         >
-          <span className="g-label mb-6">Ecosystem Backbone</span>
+          <span className="g-label mb-6">Ecosystem Alignment</span>
           <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight text-white">
-            Built for the <span className="g-text-accent">Multichain</span> Future
+            Built with Trusted <span className="g-text-accent">Infrastructure</span>
           </h2>
           <p className="text-slate-400 text-lg">
-            Constantlation leverages industry-leading protocols to ensure 
-            grade-A security and cross-chain interoperability.
+            Constantlation is integrated with core ecosystem tooling to support
+            secure operations, transparent governance, and cross-chain expansion.
           </p>
         </motion.div>
 

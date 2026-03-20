@@ -1,0 +1,33 @@
+{
+  "generatedAt": "2026-03-20T05:04:10.712Z",
+  "source": "scripts/output/paseo-latest.json",
+  "network": "polkadotTestnet",
+  "chainId": 420420417,
+  "runId": "2026-03-20T05-04-05-864Z",
+  "roles": {
+    "admin": "0xB93B321b734812fE459F22e5bdE5d5F3b165D192",
+    "strategist": "0xB93B321b734812fE459F22e5bdE5d5F3b165D192",
+    "guardian": "0xB93B321b734812fE459F22e5bdE5d5F3b165D192",
+    "keeper": "0xB93B321b734812fE459F22e5bdE5d5F3b165D192",
+    "treasury": "0xB93B321b734812fE459F22e5bdE5d5F3b165D192",
+    "deployer": "0xB93B321b734812fE459F22e5bdE5d5F3b165D192"
+  },
+  "contracts": {
+    "VaultFactory": "0x136B8Ef70503FDE1B177A557C65A653D7F32e9A3",
+    "ParaVault": "0x54373e3eE5b40FF75D22c9b295345D737Fe8aDb5",
+    "GovernanceManager": "0x54B413E7580C6d3bD85d4F03e60c8687C6805f9a",
+    "VaultAutomationController": "0xA362DbbAC8a6C64B1aCbb6FAeF62b7fF58474Fa2",
+    "MockYieldStrategy": "0xc93480AA6B12826895FE0d857a0e2448b68B13D0",
+    "MockERC20": "0xF3a12EF24A7C2925Bf244A10a7cddFbd21877DF9"
+  },
+  "vaults": [
+    {
+      "key": "pvPASEO",
+      "vault": "0x54373e3eE5b40FF75D22c9b295345D737Fe8aDb5",
+      "governanceManager": "0x54B413E7580C6d3bD85d4F03e60c8687C6805f9a",
+      "automationController": "0xA362DbbAC8a6C64B1aCbb6FAeF62b7fF58474Fa2",
+      "strategyAddress": "0xc93480AA6B12826895FE0d857a0e2448b68B13D0",
+      "assetAddress": "0xF3a12EF24A7C2925Bf244A10a7cddFbd21877DF9"
+    }
+  ]
+}

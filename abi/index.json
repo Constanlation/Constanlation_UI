@@ -1,0 +1,84 @@
+{
+  "generatedAt": "2026-03-20T05:04:10.711Z",
+  "artifactRoot": "artifacts/contracts",
+  "contracts": [
+    {
+      "id": "contracts_strategies_BaseStrategy_sol__BaseStrategy",
+      "contractName": "BaseStrategy",
+      "sourceName": "contracts/strategies/BaseStrategy.sol",
+      "file": "contracts/contracts_strategies_BaseStrategy_sol__BaseStrategy.json"
+    },
+    {
+      "id": "contracts_governance_GovernanceManager_sol__GovernanceManager",
+      "contractName": "GovernanceManager",
+      "sourceName": "contracts/governance/GovernanceManager.sol",
+      "file": "contracts/contracts_governance_GovernanceManager_sol__GovernanceManager.json"
+    },
+    {
+      "id": "contracts_factory_GovernanceManagerDeployer_sol__GovernanceManagerDeployer",
+      "contractName": "GovernanceManagerDeployer",
+      "sourceName": "contracts/factory/GovernanceManagerDeployer.sol",
+      "file": "contracts/contracts_factory_GovernanceManagerDeployer_sol__GovernanceManagerDeployer.json"
+    },
+    {
+      "id": "contracts_factory_VaultFactory_sol__IFactoryVault",
+      "contractName": "IFactoryVault",
+      "sourceName": "contracts/factory/VaultFactory.sol",
+      "file": "contracts/contracts_factory_VaultFactory_sol__IFactoryVault.json"
+    },
+    {
+      "id": "contracts_factory_VaultFactory_sol__IGovernanceManagerDeployer",
+      "contractName": "IGovernanceManagerDeployer",
+      "sourceName": "contracts/factory/VaultFactory.sol",
+      "file": "contracts/contracts_factory_VaultFactory_sol__IGovernanceManagerDeployer.json"
+    },
+    {
+      "id": "contracts_factory_VaultFactory_sol__IParaVaultDeployer",
+      "contractName": "IParaVaultDeployer",
+      "sourceName": "contracts/factory/VaultFactory.sol",
+      "file": "contracts/contracts_factory_VaultFactory_sol__IParaVaultDeployer.json"
+    },
+    {
+      "id": "contracts_interfaces_IStrategy_sol__IStrategy",
+      "contractName": "IStrategy",
+      "sourceName": "contracts/interfaces/IStrategy.sol",
+      "file": "contracts/contracts_interfaces_IStrategy_sol__IStrategy.json"
+    },
+    {
+      "id": "contracts_mocks_MockERC20_sol__MockERC20",
+      "contractName": "MockERC20",
+      "sourceName": "contracts/mocks/MockERC20.sol",
+      "file": "contracts/contracts_mocks_MockERC20_sol__MockERC20.json"
+    },
+    {
+      "id": "contracts_strategies_MockYieldStrategy_sol__MockYieldStrategy",
+      "contractName": "MockYieldStrategy",
+      "sourceName": "contracts/strategies/MockYieldStrategy.sol",
+      "file": "contracts/contracts_strategies_MockYieldStrategy_sol__MockYieldStrategy.json"
+    },
+    {
+      "id": "contracts_vault_ParaVault_sol__ParaVault",
+      "contractName": "ParaVault",
+      "sourceName": "contracts/vault/ParaVault.sol",
+      "file": "contracts/contracts_vault_ParaVault_sol__ParaVault.json"
+    },
+    {
+      "id": "contracts_factory_ParaVaultDeployer_sol__ParaVaultDeployer",
+      "contractName": "ParaVaultDeployer",
+      "sourceName": "contracts/factory/ParaVaultDeployer.sol",
+      "file": "contracts/contracts_factory_ParaVaultDeployer_sol__ParaVaultDeployer.json"
+    },
+    {
+      "id": "contracts_automation_VaultAutomationController_sol__VaultAutomationController",
+      "contractName": "VaultAutomationController",
+      "sourceName": "contracts/automation/VaultAutomationController.sol",
+      "file": "contracts/contracts_automation_VaultAutomationController_sol__VaultAutomationController.json"
+    },
+    {
+      "id": "contracts_factory_VaultFactory_sol__VaultFactory",
+      "contractName": "VaultFactory",
+      "sourceName": "contracts/factory/VaultFactory.sol",
+      "file": "contracts/contracts_factory_VaultFactory_sol__VaultFactory.json"
+    }
+  ]
+}

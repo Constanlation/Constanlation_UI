@@ -4,10 +4,10 @@ import { motion } from "framer-motion";
 import GlassCard from "./GlassCard";
 
 const strategyMetrics = [
-  { label: "Strategy Multi-Sig", value: "Verified", detail: "3/5 Approved", type: "Security" },
-  { label: "Buffer Management", value: "Active", detail: "18.4% Liquid", type: "Liquidity" },
-  { label: "Guardian Heartbeat", value: "Nominal", detail: "Every 12s", type: "Monitoring" },
-  { label: "Exit Queue", value: "Uncongested", detail: "2.8x Coverage", type: "Withdrawal" },
+  { label: "Strategy Authorization", value: "Verified", detail: "3/5 Signed", type: "Security" },
+  { label: "Liquidity Buffer", value: "Active", detail: "18.4% Available", type: "Liquidity" },
+  { label: "Guardian Monitoring", value: "Online", detail: "12s Cadence", type: "Monitoring" },
+  { label: "Withdrawal Queue", value: "Healthy", detail: "2.8x Coverage", type: "Redemption" },
 ];
 
 export default function VaultShowcase() {
@@ -21,14 +21,14 @@ export default function VaultShowcase() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 1 }}
             >
-              <span className="g-label mb-8">System Intelligence</span>
+              <span className="g-label mb-8">Operational Visibility</span>
               <h2 className="text-5xl md:text-6xl font-black text-white mb-8 tracking-tighter leading-[0.95]">
                 Structured for <br />
-                <span className="g-text-accent text-glow">Deterministic Yield</span>
+                <span className="g-text-accent text-glow">Accountable Performance</span>
               </h2>
               <p className="text-slate-400 text-xl leading-relaxed mb-12">
-                We replace ambiguous farming with structured capital deployment. 
-                Monitor performance and safety signals through a unified audit-ready interface.
+                Replace opaque yield hunting with controlled capital deployment.
+                Track strategy execution, liquidity posture, and safety signals in one audit-ready view.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
