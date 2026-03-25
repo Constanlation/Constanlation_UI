@@ -4,6 +4,8 @@ import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-
 import Link from "next/link";
 import { useState } from "react";
 
+import { siteLinks } from "@/lib/site-links";
+
 export default function Navbar() {
   const { scrollY } = useScroll();
   const [hidden, setHidden] = useState(false);
@@ -37,18 +39,21 @@ export default function Navbar() {
           }`}
         >
           <div className="glacier-container flex items-center justify-between">
-            <div className={`g-glass px-6 py-3 flex items-center gap-4 transition-all duration-500 ${scrolled ? "rounded-full" : "rounded-2xl"}`}>
+            <Link
+              href={siteLinks.home}
+              className={`g-glass px-6 py-3 flex items-center gap-4 transition-all duration-500 ${scrolled ? "rounded-full" : "rounded-2xl"}`}
+            >
               <div className="w-6 h-6 rounded-full bg-accent shadow-[0_0_15px_rgba(255,246,75,0.5)]" />
               <span className="font-black text-xl tracking-tighter">CONSTANTLATION</span>
-            </div>
+            </Link>
 
             <div className="hidden md:flex items-center gap-2">
               <div className="g-glass px-8 py-3 rounded-full flex items-center gap-8">
-                <Link href="/vaults" className="text-xs font-bold tracking-widest uppercase hover:text-accent transition-colors">Vaults</Link>
-                <a href="#" className="text-xs font-bold tracking-widest uppercase hover:text-accent transition-colors">Docs</a>
-                <a href="#" className="text-xs font-bold tracking-widest uppercase hover:text-accent transition-colors">Governance</a>
+                <Link href={siteLinks.vaults} className="text-xs font-bold tracking-widest uppercase hover:text-accent transition-colors">Vaults</Link>
+                <Link href={siteLinks.docs} className="text-xs font-bold tracking-widest uppercase hover:text-accent transition-colors">Docs</Link>
+                <Link href={siteLinks.governance} className="text-xs font-bold tracking-widest uppercase hover:text-accent transition-colors">Governance</Link>
               </div>
-              <Link href="/vaults" className="g-btn-primary !px-8 !py-3 !text-[11px] !rounded-full">
+              <Link href={siteLinks.vaults} className="g-btn-primary !px-8 !py-3 !text-[11px] !rounded-full">
                 Launch App
               </Link>
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleHelp } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { decodeEventLog, keccak256, toBytes } from "viem";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 
@@ -54,6 +54,7 @@ type VaultRegistrationStepperProps = {
 };
 
 const KEEPER_ROLE = keccak256(toBytes("KEEPER_ROLE"));
+const REGISTRATION_DRAFT_STORAGE_KEY = "constellation.vault-registration.draft.v1";
 
 function buildInitialValues(defaultFactoryAddress?: string): Record<string, string | boolean> {
   const defaults: Record<string, string | boolean> = {};
@@ -146,6 +147,59 @@ export function VaultRegistrationStepper({ defaultFactoryAddress, factorySource 
   const [values, setValues] = useState<Record<string, string | boolean>>(() => buildInitialValues(defaultFactoryAddress));
   const [statuses, setStatuses] = useState<Record<string, StepStatus>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [stepperInitialStep, setStepperInitialStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const raw = window.sessionStorage.getItem(REGISTRATION_DRAFT_STORAGE_KEY);
+      if (!raw) {
+        setIsDraftRestored(true);
+        return;
+      }
+
+      const draft = JSON.parse(raw) as {
+        values?: Record<string, string | boolean>;
+        currentStep?: number;
+      };
+
+      if (draft.values && typeof draft.values === "object") {
+        setValues((prev) => ({ ...prev, ...draft.values }));
+      }
+
+      if (
+        Number.isInteger(draft.currentStep) &&
+        Number(draft.currentStep) >= 1 &&
+        Number(draft.currentStep) <= registrationSteps.length
+      ) {
+        setStepperInitialStep(Number(draft.currentStep));
+        setCurrentStep(Number(draft.currentStep));
+      }
+    } catch {
+      // Ignore corrupt draft payload and continue with defaults.
+    } finally {
+      setIsDraftRestored(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isDraftRestored || typeof window === "undefined") {
+      return;
+    }
+
+    window.sessionStorage.setItem(
+      REGISTRATION_DRAFT_STORAGE_KEY,
+      JSON.stringify({
+        values,
+        currentStep,
+      }),
+    );
+  }, [currentStep, isDraftRestored, values]);
 
   const setFieldValue = (stepId: string, name: string, value: string | boolean) => {
     setValues((prev) => ({ ...prev, [`${stepId}.${name}`]: value }));
@@ -669,7 +723,18 @@ export function VaultRegistrationStepper({ defaultFactoryAddress, factorySource 
       </div>
 
       <div className="mt-5 rounded-2xl border border-white/10 bg-black/20">
+        {!isDraftRestored ? (
+          <div className="px-6 py-8 text-sm text-slate-300">Restoring draft...</div>
+        ) : null}
         <Stepper
+          key={`vault-registration-stepper-${stepperInitialStep}`}
+          initialStep={stepperInitialStep}
+          onStepChange={setCurrentStep}
+          onFinalStepCompleted={() => {
+            if (typeof window !== "undefined") {
+              window.sessionStorage.removeItem(REGISTRATION_DRAFT_STORAGE_KEY);
+            }
+          }}
           onBeforeNext={async (stepNumber) => {
             const step = registrationSteps[stepNumber - 1];
             if (!step) {
@@ -691,6 +756,7 @@ export function VaultRegistrationStepper({ defaultFactoryAddress, factorySource 
             className:
               "rounded-full border border-accent bg-accent px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] g-on-accent transition duration-300 hover:border-[rgba(255,246,75,0.7)] hover:bg-[rgba(255,246,75,0.9)]",
           }}
+          style={{ display: isDraftRestored ? undefined : "none" }}
         >
           {registrationSteps.map((step) => (
             <Step key={step.id}>

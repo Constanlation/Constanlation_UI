@@ -1,11 +1,14 @@
 "use client";
 
 import { motion, useScroll, useTransform } from "framer-motion";
+import Link from "next/link";
 import { useRef } from "react";
+
+import { siteLinks } from "@/lib/site-links";
 
 export default function HeroSection() {
   const containerRef = useRef<HTMLElement>(null);
-  
+
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end start"],
@@ -23,11 +26,8 @@ export default function HeroSection() {
     >
       <div className="g-grid-overlay" />
 
-      <motion.div 
-        style={{ y: y1, opacity, scale }}
-        className="relative z-10 max-w-5xl mx-auto"
-      >
-        <motion.div 
+      <motion.div style={{ y: y1, opacity, scale }} className="relative z-10 max-w-5xl mx-auto">
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
@@ -37,7 +37,7 @@ export default function HeroSection() {
           Constantlation Vault • Governed Registry
         </motion.div>
 
-        <motion.h1 
+        <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.4 }}
@@ -47,7 +47,7 @@ export default function HeroSection() {
           <span className="g-text-accent">for Polkadot Capital</span>
         </motion.h1>
 
-        <motion.p 
+        <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.6 }}
@@ -57,22 +57,22 @@ export default function HeroSection() {
           visible guardian controls, and transparent exit mechanics built for reliable execution.
         </motion.p>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.8 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-32"
         >
-          <button className="g-btn-primary group">
+          <Link href={siteLinks.vaults} className="g-btn-primary group">
             Explore Vaults
             <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
-          </button>
-          <button className="g-btn-ghost">
+          </Link>
+          <Link href={siteLinks.docs} className="g-btn-ghost">
             View Documentation
-          </button>
+          </Link>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           style={{ y: y2 }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -93,18 +93,17 @@ export default function HeroSection() {
         </motion.div>
       </motion.div>
 
-      {/* Hero ambient glow */}
-      <motion.div 
-        animate={{ 
+      <motion.div
+        animate={{
           scale: [1, 1.15, 1],
-          opacity: [0.03, 0.05, 0.03]
+          opacity: [0.03, 0.05, 0.03],
         }}
-        transition={{ 
+        transition={{
           duration: 10,
           repeat: Infinity,
-          ease: "linear"
+          ease: "linear",
         }}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] bg-accent blur-[180px] rounded-full pointer-events-none" 
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] bg-accent blur-[180px] rounded-full pointer-events-none"
       />
     </section>
   );

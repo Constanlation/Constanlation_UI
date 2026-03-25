@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import Grainient from "@/components/Grainient";
 import EcosystemSection from "@/components/glacier/EcosystemSection";
 import FeaturesSection from "@/components/glacier/FeaturesSection";
@@ -8,6 +10,7 @@ import PartnersSection from "@/components/glacier/PartnersSection";
 import StarfieldCanvas from "@/components/glacier/StarfieldCanvas";
 import VaultShowcase from "@/components/glacier/VaultShowcase";
 import { UnifiedNavbar } from "@/components/navigation/UnifiedNavbar";
+import { siteLinks } from "@/lib/site-links";
 
 export default function HomePage() {
   return (
@@ -42,15 +45,17 @@ export default function HomePage() {
 
       <footer className="glacier-footer relative z-20">
         <div className="glacier-footer__inner">
-          <div className="glacier-footer__brand group cursor-pointer">
+          <Link href={siteLinks.home} className="glacier-footer__brand group">
             <span className="glacier-footer__dot glacier-footer__dot--interactive" />
             <span className="font-black tracking-tighter text-2xl">CONSTANTLATION</span>
-          </div>
+          </Link>
           <nav className="glacier-footer__links">
-            <a href="#">Docs</a>
-            <a href="#">Governance</a>
-            <a href="#">GitHub</a>
-            <a href="#">X (Twitter)</a>
+            <Link href={siteLinks.docs}>Docs</Link>
+            <Link href={siteLinks.governance}>Governance</Link>
+            <a href={siteLinks.githubUi} target="_blank" rel="noreferrer">
+              GitHub
+            </a>
+            <Link href={siteLinks.portfolio}>Portfolio</Link>
           </nav>
           <div className="flex flex-col items-center gap-4">
             <p className="glacier-footer__copy">

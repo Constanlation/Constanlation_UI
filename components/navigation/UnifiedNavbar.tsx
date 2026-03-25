@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 
 import { ConnectWalletButton } from "@/components/wallet/ConnectWalletButton";
+import { siteLinks } from "@/lib/site-links";
 
 type NavbarVariant = "landing" | "app";
 
@@ -72,7 +73,7 @@ export function UnifiedNavbar({ variant }: UnifiedNavbarProps) {
         >
           <div className={cx(isLanding ? "glacier-container" : "mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8", "flex items-center justify-between gap-3")}>
             <Link
-              href="/"
+              href={siteLinks.home}
               className={cx(
                 "g-glass flex items-center gap-4 px-6 py-3 transition-all duration-500",
                 isLanding ? (scrolled ? "rounded-full" : "rounded-2xl") : "rounded-full"
@@ -89,34 +90,34 @@ export function UnifiedNavbar({ variant }: UnifiedNavbarProps) {
                   isLanding ? "gap-8 px-8 py-3" : "gap-4 px-4 py-2"
                 )}
               >
-                <NavItem href="/" active={!isLanding && pathname === "/"}>
+                <NavItem href={siteLinks.home} active={!isLanding && pathname === "/"}>
                   Home
                 </NavItem>
-                <NavItem href="/vaults" active={pathname?.endsWith("/vaults") ?? false}>
+                <NavItem href={siteLinks.vaults} active={pathname?.endsWith("/vaults") ?? false}>
                   Vaults
                 </NavItem>
                 {isLanding ? (
                   <>
-                    <a className="text-xs font-bold uppercase tracking-widest transition-colors hover:text-accent" href="#">
+                    <Link href={siteLinks.docs} className="text-xs font-bold uppercase tracking-widest transition-colors hover:text-accent">
                       Docs
-                    </a>
-                    <a className="text-xs font-bold uppercase tracking-widest transition-colors hover:text-accent" href="#">
+                    </Link>
+                    <Link href={siteLinks.governance} className="text-xs font-bold uppercase tracking-widest transition-colors hover:text-accent">
                       Governance
-                    </a>
+                    </Link>
                   </>
                 ) : (
                   <>
-                    <NavItem href="/vaults/register" active={pathname?.startsWith("/vaults/register") ?? false}>
+                    <NavItem href={siteLinks.vaultRegistration} active={pathname?.startsWith("/vaults/register") ?? false}>
                       Register
                     </NavItem>
-                    <NavItem href="/strategies/create" active={pathname?.startsWith("/strategies") ?? false}>
+                    <NavItem href={siteLinks.strategies} active={pathname?.startsWith("/strategies") ?? false}>
                       Strategies
                     </NavItem>
-                    <NavItem href="/profile" active={(pathname?.startsWith("/profile") ?? false) && !fromPortfolio}>
+                    <NavItem href={siteLinks.profile} active={(pathname?.startsWith("/profile") ?? false) && !fromPortfolio}>
                       Profile
                     </NavItem>
                     <NavItem
-                      href="/portfolio"
+                      href={siteLinks.portfolio}
                       active={(pathname?.startsWith("/portfolio") ?? false) || ((pathname?.startsWith("/profile") ?? false) && fromPortfolio)}
                     >
                       Portfolio
@@ -126,7 +127,7 @@ export function UnifiedNavbar({ variant }: UnifiedNavbarProps) {
               </div>
 
               {isLanding ? (
-                <Link href="/vaults" className="g-btn-primary !rounded-full !px-8 !py-3 !text-[11px]">
+                <Link href={siteLinks.vaults} className="g-btn-primary !rounded-full !px-8 !py-3 !text-[11px]">
                   Launch App
                 </Link>
               ) : (
@@ -136,14 +137,14 @@ export function UnifiedNavbar({ variant }: UnifiedNavbarProps) {
 
             <div className="flex items-center gap-2 md:hidden">
               <Link
-                href="/vaults"
+                href={siteLinks.vaults}
                 className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-200 transition hover:border-white/40 hover:text-white"
               >
                 Vaults
               </Link>
               {!isLanding ? (
                 <Link
-                  href="/strategies/create"
+                  href={siteLinks.strategies}
                   className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-200 transition hover:border-white/40 hover:text-white"
                 >
                   Strategies
@@ -151,7 +152,7 @@ export function UnifiedNavbar({ variant }: UnifiedNavbarProps) {
               ) : null}
               {!isLanding ? (
                 <Link
-                  href="/profile"
+                  href={siteLinks.profile}
                   className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-200 transition hover:border-white/40 hover:text-white"
                 >
                   Profile

@@ -163,11 +163,35 @@ function RoleActionWorkspace({ role }: { role: "governance-admin" | "vault-admin
   return <KeeperWorkspace />;
 }
 
-function parseAddressList(value: string): Array<`0x${string}`> {
-  return value
+function parseStrictAddressList(value: string): Array<`0x${string}`> | null {
+  const entries = value
     .split(",")
     .map((entry) => entry.trim())
-    .filter((entry) => isValidEthereumAddress(entry)) as Array<`0x${string}`>;
+    .filter(Boolean);
+
+  if (entries.length === 0) {
+    return null;
+  }
+
+  if (entries.some((entry) => !isValidEthereumAddress(entry))) {
+    return null;
+  }
+
+  return entries as Array<`0x${string}`>;
+}
+
+function parsePositiveAmount(value: string): number | null {
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
 }
 
 function isValidRoleHash(value: string) {
@@ -435,6 +459,7 @@ function StrategistWorkspace() {
   const [recallOrder, setRecallOrder] = useState(polkadotTestnetContractDefaults.strategy ?? "");
   const [allocateOrder, setAllocateOrder] = useState(polkadotTestnetContractDefaults.strategy ?? "");
   const [status, setStatus] = useState<ActionStatus | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const vaultContext = useRoleVaultContext();
 
   useEffect(() => {
@@ -475,11 +500,16 @@ function StrategistWorkspace() {
   };
 
   const withStatus = async (label: string, action: (context: VaultActionContext) => Promise<`0x${string}`>) => {
+    if (isSubmitting) {
+      return;
+    }
+
     if (!canWrite) {
       setStatus({ tone: "warn", text: "Connect wallet and provide a valid vault address." });
       return;
     }
 
+    setIsSubmitting(true);
     try {
       setStatus({ tone: "neutral", text: `${label} transaction submitted...` });
       const hash = await action(buildContext());
@@ -487,7 +517,66 @@ function StrategistWorkspace() {
     } catch (error) {
       const message = error instanceof Error ? error.message : `${label} failed`;
       setStatus({ tone: "warn", text: message });
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const submitAllocate = () => {
+    if (!isValidEthereumAddress(strategyAddress)) {
+      setStatus({ tone: "warn", text: "Provide a valid strategy address." });
+      return;
+    }
+
+    if (parsePositiveAmount(amount) === null) {
+      setStatus({ tone: "warn", text: "Provide an amount greater than 0." });
+      return;
+    }
+
+    void withStatus("Allocate", (context) => allocateToStrategy(context, strategyAddress as `0x${string}`, amount));
+  };
+
+  const submitRecall = () => {
+    if (!isValidEthereumAddress(strategyAddress)) {
+      setStatus({ tone: "warn", text: "Provide a valid strategy address." });
+      return;
+    }
+
+    if (parsePositiveAmount(amount) === null) {
+      setStatus({ tone: "warn", text: "Provide an amount greater than 0." });
+      return;
+    }
+
+    void withStatus("Recall", (context) => recallFromStrategyAssets(context, strategyAddress as `0x${string}`, amount));
+  };
+
+  const submitRecallAll = () => {
+    if (!isValidEthereumAddress(strategyAddress)) {
+      setStatus({ tone: "warn", text: "Provide a valid strategy address." });
+      return;
+    }
+
+    void withStatus("Recall all", (context) => recallAllFromStrategy(context, strategyAddress as `0x${string}`));
+  };
+
+  const submitHarvest = () => {
+    if (!isValidEthereumAddress(strategyAddress)) {
+      setStatus({ tone: "warn", text: "Provide a valid strategy address." });
+      return;
+    }
+
+    void withStatus("Harvest", (context) => harvestStrategy(context, strategyAddress as `0x${string}`));
+  };
+
+  const submitRebalance = () => {
+    const recall = parseStrictAddressList(recallOrder);
+    const allocate = parseStrictAddressList(allocateOrder);
+    if (!recall || !allocate) {
+      setStatus({ tone: "warn", text: "Provide valid comma-separated address lists for recall and allocate order." });
+      return;
+    }
+
+    void withStatus("Rebalance", (context) => rebalanceStrategies(context, recall, allocate));
   };
 
   return (
@@ -530,36 +619,32 @@ function StrategistWorkspace() {
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() =>
-            void withStatus("Allocate", (context) =>
-              allocateToStrategy(context, strategyAddress as `0x${string}`, amount),
-            )
-          }
+          onClick={submitAllocate}
+          disabled={isSubmitting || !canWrite || vaultContext.isLoading}
           className="rounded-full border border-accent bg-accent px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] g-on-accent"
         >
           Allocate
         </button>
         <button
           type="button"
-          onClick={() =>
-            void withStatus("Recall", (context) =>
-              recallFromStrategyAssets(context, strategyAddress as `0x${string}`, amount),
-            )
-          }
+          onClick={submitRecall}
+          disabled={isSubmitting || !canWrite || vaultContext.isLoading}
           className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
         >
           Recall
         </button>
         <button
           type="button"
-          onClick={() => void withStatus("Recall all", (context) => recallAllFromStrategy(context, strategyAddress as `0x${string}`))}
+          onClick={submitRecallAll}
+          disabled={isSubmitting || !canWrite || vaultContext.isLoading}
           className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
         >
           Recall All
         </button>
         <button
           type="button"
-          onClick={() => void withStatus("Harvest", (context) => harvestStrategy(context, strategyAddress as `0x${string}`))}
+          onClick={submitHarvest}
+          disabled={isSubmitting || !canWrite || vaultContext.isLoading}
           className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
         >
           Harvest
@@ -589,14 +674,11 @@ function StrategistWorkspace() {
 
       <button
         type="button"
-        onClick={() =>
-          void withStatus("Rebalance", (context) =>
-            rebalanceStrategies(context, parseAddressList(recallOrder), parseAddressList(allocateOrder)),
-          )
-        }
+        onClick={submitRebalance}
+        disabled={isSubmitting || !canWrite || vaultContext.isLoading}
         className="mt-4 rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
       >
-        Execute Rebalance
+        {isSubmitting ? "Submitting..." : "Execute Rebalance"}
       </button>
 
       {status ? (
@@ -630,6 +712,7 @@ function GovernanceAdminWorkspace() {
   const [withdrawalFeeBps, setWithdrawalFeeBps] = useState("50");
   const [autoManaged, setAutoManaged] = useState(true);
   const [status, setStatus] = useState<ActionStatus | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const vaultContext = useRoleVaultContext();
 
   useEffect(() => {
@@ -673,11 +756,16 @@ function GovernanceAdminWorkspace() {
   };
 
   const withStatus = async (label: string, action: (context: VaultActionContext) => Promise<`0x${string}`>) => {
+    if (isSubmitting) {
+      return;
+    }
+
     if (!canWrite) {
       setStatus({ tone: "warn", text: "Connect wallet and provide valid vault/governance addresses." });
       return;
     }
 
+    setIsSubmitting(true);
     try {
       setStatus({ tone: "neutral", text: `${label} transaction submitted...` });
       const hash = await action(buildContext());
@@ -685,6 +773,8 @@ function GovernanceAdminWorkspace() {
     } catch (error) {
       const message = error instanceof Error ? error.message : `${label} failed`;
       setStatus({ tone: "warn", text: message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1102,6 +1192,7 @@ function VaultAdminWorkspace() {
   const [rescueAmount, setRescueAmount] = useState("0");
   const [shareAmount, setShareAmount] = useState("0");
   const [status, setStatus] = useState<ActionStatus | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const vaultContext = useRoleVaultContext();
 
   useEffect(() => {
@@ -1132,11 +1223,16 @@ function VaultAdminWorkspace() {
   };
 
   const withStatus = async (label: string, action: (context: VaultActionContext) => Promise<`0x${string}`>) => {
+    if (isSubmitting) {
+      return;
+    }
+
     if (!canWrite) {
       setStatus({ tone: "warn", text: "Connect wallet and provide a valid vault address." });
       return;
     }
 
+    setIsSubmitting(true);
     try {
       setStatus({ tone: "neutral", text: `${label} transaction submitted...` });
       const hash = await action(buildContext());
@@ -1144,6 +1240,8 @@ function VaultAdminWorkspace() {
     } catch (error) {
       const message = error instanceof Error ? error.message : `${label} failed`;
       setStatus({ tone: "warn", text: message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1357,6 +1455,7 @@ function GuardianWorkspace() {
   const [vaultAddress, setVaultAddress] = useState(polkadotTestnetContractDefaults.vault ?? "");
   const [strategyAddress, setStrategyAddress] = useState(polkadotTestnetContractDefaults.strategy ?? "");
   const [status, setStatus] = useState<ActionStatus | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const vaultContext = useRoleVaultContext();
   const expectedChainId = polkadotTestnetContractDefaults.chainId;
   const connectedChainId = publicClient?.chain?.id ?? null;
@@ -1410,6 +1509,10 @@ function GuardianWorkspace() {
   };
 
   const withStatus = async (label: string, action: (context: VaultActionContext) => Promise<`0x${string}`>) => {
+    if (isSubmitting) {
+      return;
+    }
+
     if (!canWrite) {
       setStatus({
         tone: "warn",
@@ -1420,6 +1523,7 @@ function GuardianWorkspace() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       setStatus({ tone: "neutral", text: `${label} transaction submitted...` });
       const context = buildContext();
@@ -1429,6 +1533,8 @@ function GuardianWorkspace() {
     } catch (error) {
       const message = error instanceof Error ? error.message : `${label} failed`;
       setStatus({ tone: "warn", text: message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1510,6 +1616,7 @@ function KeeperWorkspace() {
   const [amount, setAmount] = useState("");
   const [maxCount, setMaxCount] = useState("5");
   const [status, setStatus] = useState<ActionStatus | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const vaultContext = useRoleVaultContext();
 
   useEffect(() => {
@@ -1552,11 +1659,16 @@ function KeeperWorkspace() {
   };
 
   const withStatus = async (label: string, action: (context: VaultActionContext) => Promise<`0x${string}`>) => {
+    if (isSubmitting) {
+      return;
+    }
+
     if (!canWrite) {
       setStatus({ tone: "warn", text: "Connect wallet and provide valid vault/controller addresses." });
       return;
     }
 
+    setIsSubmitting(true);
     try {
       setStatus({ tone: "neutral", text: `${label} transaction submitted...` });
       const hash = await action(buildContext());
@@ -1564,6 +1676,8 @@ function KeeperWorkspace() {
     } catch (error) {
       const message = error instanceof Error ? error.message : `${label} failed`;
       setStatus({ tone: "warn", text: message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1712,6 +1826,7 @@ function ControllerAdminWorkspace() {
   const [maxRecallPerExec, setMaxRecallPerExec] = useState("100");
   const [policyEnabled, setPolicyEnabled] = useState(true);
   const [status, setStatus] = useState<ActionStatus | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const vaultContext = useRoleVaultContext();
   const expectedChainId = polkadotTestnetContractDefaults.chainId;
   const connectedChainId = publicClient?.chain?.id ?? null;
@@ -1773,6 +1888,10 @@ function ControllerAdminWorkspace() {
     action: (context: VaultActionContext) => Promise<`0x${string}`>,
     targetAddress?: `0x${string}`,
   ) => {
+    if (isSubmitting) {
+      return;
+    }
+
     if (!canWrite) {
       setStatus({
         tone: "warn",
@@ -1783,6 +1902,7 @@ function ControllerAdminWorkspace() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       setStatus({ tone: "neutral", text: `${label} transaction submitted...` });
       const context = buildContext();
@@ -1792,6 +1912,8 @@ function ControllerAdminWorkspace() {
     } catch (error) {
       const message = error instanceof Error ? error.message : `${label} failed`;
       setStatus({ tone: "warn", text: message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

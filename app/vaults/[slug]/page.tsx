@@ -7,7 +7,12 @@ import { useEffect, useState } from "react";
 import { formatUnits, parseUnits } from "viem";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 
-import { AppPageFrame, KpiStrip, StatusPill, VaultLocalSubnav } from "@/components/app/AppPrimitives";
+import {
+  AppPageFrame,
+  KpiStrip,
+  StatusPill,
+  VaultLocalSubnav,
+} from "@/components/app/AppPrimitives";
 import { ConnectWalletButton } from "@/components/wallet/ConnectWalletButton";
 import { polkadotTestnetContractDefaults } from "@/lib/contracts/registry";
 import { RoleSlug, resolveWalletRoles } from "@/lib/profile/roles";
@@ -41,7 +46,11 @@ import {
 } from "@/lib/wallet/vault-actions";
 
 type ActionTab = "deposit" | "withdraw";
-type ActionStatus = { tone: "neutral" | "good" | "warn"; text: string; technicalText?: string };
+type ActionStatus = {
+  tone: "neutral" | "good" | "warn";
+  text: string;
+  technicalText?: string;
+};
 
 function extractQueueId(value: string): bigint | null {
   const normalized = value.trim();
@@ -67,7 +76,9 @@ export default function VaultDetailPage() {
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const [tab, setTab] = useState<ActionTab>("deposit");
-  const [withdrawMode, setWithdrawMode] = useState<"instant" | "queue">("instant");
+  const [withdrawMode, setWithdrawMode] = useState<"instant" | "queue">(
+    "instant",
+  );
   const [amount, setAmount] = useState("");
   const [claimingQueueId, setClaimingQueueId] = useState<string | null>(null);
   const [claimedQueueIds, setClaimedQueueIds] = useState<string[]>([]);
@@ -80,19 +91,36 @@ export default function VaultDetailPage() {
     guardianControls: GuardianControl[];
     queue: QueueEntry[];
   } | null>(null);
-  const [dbQueueState, setDbQueueState] = useState<{ slug: string; queue: QueueEntry[] } | null>(null);
-  const [dbWarnings, setDbWarnings] = useState<{ slug: string; warnings: string[] } | null>(null);
+  const [dbQueueState, setDbQueueState] = useState<{
+    slug: string;
+    queue: QueueEntry[];
+  } | null>(null);
+  const [dbWarnings, setDbWarnings] = useState<{
+    slug: string;
+    warnings: string[];
+  } | null>(null);
   const [isVaultLoading, setIsVaultLoading] = useState(true);
   const [vaultError, setVaultError] = useState<string | null>(null);
   const [positionRefreshNonce, setPositionRefreshNonce] = useState(0);
-  const [selectedRole, setSelectedRole] = useState<VaultActionRole | null>(null);
-  const [roleStrategyAddress, setRoleStrategyAddress] = useState(polkadotTestnetContractDefaults.strategy ?? "");
-  const [roleControllerAddress, setRoleControllerAddress] = useState(polkadotTestnetContractDefaults.controller ?? "");
+  const [selectedRole, setSelectedRole] = useState<VaultActionRole | null>(
+    null,
+  );
+  const [roleStrategyAddress, setRoleStrategyAddress] = useState(
+    polkadotTestnetContractDefaults.strategy ?? "",
+  );
+  const [roleControllerAddress, setRoleControllerAddress] = useState(
+    polkadotTestnetContractDefaults.controller ?? "",
+  );
   const [roleAmount, setRoleAmount] = useState("");
   const [roleSettleCount, setRoleSettleCount] = useState("5");
-  const [roleActionStatus, setRoleActionStatus] = useState<ActionStatus | null>(null);
+  const [roleActionStatus, setRoleActionStatus] = useState<ActionStatus | null>(
+    null,
+  );
 
-  const vault = dbVaultState && dbVaultState.slug === params.slug ? dbVaultState.vault : null;
+  const vault =
+    dbVaultState && dbVaultState.slug === params.slug
+      ? dbVaultState.vault
+      : null;
   const strategyNotes =
     dbVaultState && dbVaultState.slug === params.slug
       ? dbVaultState.strategyNotes
@@ -109,20 +137,26 @@ export default function VaultDetailPage() {
     dbVaultState && dbVaultState.slug === params.slug
       ? dbVaultState.queue
       : dbQueueState && dbQueueState.slug === params.slug
-      ? dbQueueState.queue
-      : [];
-  const dbWarningsForSlug = dbWarnings && dbWarnings.slug === params.slug ? dbWarnings.warnings : [];
-  const hasValidVaultAddress = Boolean(vault?.contractAddress && isValidEthereumAddress(vault.contractAddress));
+        ? dbQueueState.queue
+        : [];
+  const dbWarningsForSlug =
+    dbWarnings && dbWarnings.slug === params.slug ? dbWarnings.warnings : [];
+  const hasValidVaultAddress = Boolean(
+    vault?.contractAddress && isValidEthereumAddress(vault.contractAddress),
+  );
   const expectedChainId = polkadotTestnetContractDefaults.chainId;
   const connectedChainId = publicClient?.chain?.id ?? null;
-  const isChainMismatch = connectedChainId !== null && connectedChainId !== expectedChainId;
+  const isChainMismatch =
+    connectedChainId !== null && connectedChainId !== expectedChainId;
   const userVaultPosition = useUserVaultPosition({
     address,
     vaultAddress: vault?.contractAddress,
     publicClient,
     refreshKey: positionRefreshNonce,
   });
-  const roleCandidates = resolveWalletRoles(address, isConnected).filter(isVaultActionRole);
+  const roleCandidates = resolveWalletRoles(address, isConnected).filter(
+    isVaultActionRole,
+  );
 
   useEffect(() => {
     if (roleCandidates.length === 0) {
@@ -143,7 +177,9 @@ export default function VaultDetailPage() {
 
     const loadVault = async () => {
       try {
-        const response = await fetch(`/api/vaults/${params.slug}`, { cache: "no-store" });
+        const response = await fetch(`/api/vaults/${params.slug}`, {
+          cache: "no-store",
+        });
         if (!response.ok) {
           if (active) {
             setVaultError("Unable to load vault details from indexed data.");
@@ -194,7 +230,9 @@ export default function VaultDetailPage() {
 
     const loadQueue = async () => {
       try {
-        const response = await fetch(`/api/vaults/${params.slug}/queue`, { cache: "no-store" });
+        const response = await fetch(`/api/vaults/${params.slug}/queue`, {
+          cache: "no-store",
+        });
         if (!response.ok) {
           if (active) {
             setDbQueueState(null);
@@ -230,7 +268,10 @@ export default function VaultDetailPage() {
 
   if (isVaultLoading) {
     return (
-      <AppPageFrame title="Loading Vault" subtitle="Fetching indexed vault details.">
+      <AppPageFrame
+        title="Loading Vault"
+        subtitle="Fetching indexed vault details."
+      >
         <div className="g-glass p-6 text-slate-300">
           <p>Loading vault details...</p>
         </div>
@@ -243,7 +284,10 @@ export default function VaultDetailPage() {
       <AppPageFrame title="Vault Unavailable" subtitle={vaultError}>
         <div className="g-glass p-6 text-slate-300">
           <p>Try the directory and pick another vault, then retry.</p>
-          <Link href="/vaults" className="mt-3 inline-flex text-accent hover:underline">
+          <Link
+            href="/vaults"
+            className="mt-3 inline-flex text-accent hover:underline"
+          >
             Back to vault directory
           </Link>
         </div>
@@ -253,10 +297,16 @@ export default function VaultDetailPage() {
 
   if (!vault) {
     return (
-      <AppPageFrame title="Vault Not Found" subtitle="This vault is unavailable in the current indexed dataset.">
+      <AppPageFrame
+        title="Vault Not Found"
+        subtitle="This vault is unavailable in the current indexed dataset."
+      >
         <div className="g-glass p-6 text-slate-300">
           <p>Try the directory and pick one of the available vaults.</p>
-          <Link href="/vaults" className="mt-3 inline-flex text-accent hover:underline">
+          <Link
+            href="/vaults"
+            className="mt-3 inline-flex text-accent hover:underline"
+          >
             Back to vault directory
           </Link>
         </div>
@@ -269,29 +319,32 @@ export default function VaultDetailPage() {
     tab === "deposit"
       ? numericAmount * (vault.apyNow / 100)
       : withdrawMode === "instant"
-      ? numericAmount
-      : numericAmount * vault.sharePrice;
-  const amountUnit = tab === "withdraw" && withdrawMode === "queue" ? vault.symbol : vault.asset;
+        ? numericAmount
+        : numericAmount * vault.sharePrice;
+  const amountUnit =
+    tab === "withdraw" && withdrawMode === "queue" ? vault.symbol : vault.asset;
   const maxAmount =
     tab === "deposit"
       ? userVaultPosition.walletAssetBalance
       : withdrawMode === "instant"
-      ? userVaultPosition.assets
-      : userVaultPosition.shares;
+        ? userVaultPosition.assets
+        : userVaultPosition.shares;
   const maxAmountDecimals =
     tab === "deposit" || withdrawMode === "instant"
       ? userVaultPosition.assetDecimals
       : userVaultPosition.shareDecimals;
-  const maxAmountForInput = maxAmount ? trimTokenAmount(formatUnits(maxAmount, maxAmountDecimals)) : "0";
+  const maxAmountForInput = maxAmount
+    ? trimTokenAmount(formatUnits(maxAmount, maxAmountDecimals))
+    : "0";
 
   const isClaimable = (status: string) => status === "Ready to Claim";
 
   const canWrite = Boolean(
     isConnected &&
-      address &&
-      publicClient &&
-        hasValidVaultAddress &&
-        !isChainMismatch,
+    address &&
+    publicClient &&
+    hasValidVaultAddress &&
+    !isChainMismatch,
   );
 
   const buildActionContext = (): VaultActionContext => {
@@ -299,7 +352,9 @@ export default function VaultDetailPage() {
       throw new Error("Wallet or vault address is not ready for transaction.");
     }
     if (publicClient.chain?.id !== expectedChainId) {
-      throw new Error(`Wrong network. Switch wallet to chain ${expectedChainId}.`);
+      throw new Error(
+        `Wrong network. Switch wallet to chain ${expectedChainId}.`,
+      );
     }
 
     return {
@@ -311,7 +366,9 @@ export default function VaultDetailPage() {
   };
 
   const ensureVaultContractCode = async (context: VaultActionContext) => {
-    const bytecode = await context.publicClient.getCode({ address: context.vaultAddress });
+    const bytecode = await context.publicClient.getCode({
+      address: context.vaultAddress,
+    });
     if (!bytecode || bytecode === "0x") {
       throw new Error("Vault contract not found on the connected network.");
     }
@@ -323,12 +380,19 @@ export default function VaultDetailPage() {
       throw new Error("Enter an amount greater than 0.");
     }
 
-    if (userVaultPosition.isLoading || userVaultPosition.error || userVaultPosition.source !== "onchain") {
+    if (
+      userVaultPosition.isLoading ||
+      userVaultPosition.error ||
+      userVaultPosition.source !== "onchain"
+    ) {
       return;
     }
 
     if (tab === "deposit") {
-      const requestedAssets = parseUnits(normalized, userVaultPosition.assetDecimals);
+      const requestedAssets = parseUnits(
+        normalized,
+        userVaultPosition.assetDecimals,
+      );
       if (requestedAssets > userVaultPosition.walletAssetBalance) {
         throw new Error(`Amount exceeds your wallet ${vault.asset} balance.`);
       }
@@ -337,12 +401,18 @@ export default function VaultDetailPage() {
 
     if (tab === "withdraw") {
       if (withdrawMode === "instant") {
-        const requestedAssets = parseUnits(normalized, userVaultPosition.assetDecimals);
+        const requestedAssets = parseUnits(
+          normalized,
+          userVaultPosition.assetDecimals,
+        );
         if (requestedAssets > userVaultPosition.assets) {
           throw new Error("Amount exceeds your available underlying assets.");
         }
       } else {
-        const requestedShares = parseUnits(normalized, userVaultPosition.shareDecimals);
+        const requestedShares = parseUnits(
+          normalized,
+          userVaultPosition.shareDecimals,
+        );
         if (requestedShares > userVaultPosition.shares) {
           throw new Error("Amount exceeds your vault share balance.");
         }
@@ -382,7 +452,9 @@ export default function VaultDetailPage() {
       }
 
       if (queueResponse.ok) {
-        const payload = (await queueResponse.json()) as { queue?: QueueEntry[] };
+        const payload = (await queueResponse.json()) as {
+          queue?: QueueEntry[];
+        };
         if (payload.queue) {
           setDbQueueState({ slug: params.slug, queue: payload.queue });
         }
@@ -404,7 +476,10 @@ export default function VaultDetailPage() {
     }
 
     if (!amount || Number(amount) <= 0) {
-      setActionStatus({ tone: "warn", text: "Enter an amount greater than 0." });
+      setActionStatus({
+        tone: "warn",
+        text: "Enter an amount greater than 0.",
+      });
       return;
     }
 
@@ -416,13 +491,22 @@ export default function VaultDetailPage() {
 
       if (tab === "deposit") {
         const hash = await depositAssets(context, amount);
-        setActionStatus({ tone: "good", text: `Deposit confirmed: ${formatTxHashShort(hash)}` });
+        setActionStatus({
+          tone: "good",
+          text: `Deposit confirmed: ${formatTxHashShort(hash)}`,
+        });
       } else if (withdrawMode === "instant") {
         const hash = await withdrawAssets(context, amount);
-        setActionStatus({ tone: "good", text: `Withdraw confirmed: ${formatTxHashShort(hash)}` });
+        setActionStatus({
+          tone: "good",
+          text: `Withdraw confirmed: ${formatTxHashShort(hash)}`,
+        });
       } else {
         const hash = await requestWithdrawAssets(context, amount);
-        setActionStatus({ tone: "good", text: `Queued withdraw request confirmed: ${formatTxHashShort(hash)}` });
+        setActionStatus({
+          tone: "good",
+          text: `Queued withdraw request confirmed: ${formatTxHashShort(hash)}`,
+        });
       }
 
       setAmount("");
@@ -456,13 +540,18 @@ export default function VaultDetailPage() {
     }
 
     setClaimingQueueId(queueId);
-    setActionStatus({ tone: "neutral", text: "Submitting claim transaction..." });
+    setActionStatus({
+      tone: "neutral",
+      text: "Submitting claim transaction...",
+    });
     void (async () => {
       try {
         const context = buildActionContext();
         await ensureVaultContractCode(context);
         const hash = await claimWithdrawalById(context, parsedQueueId);
-        setClaimedQueueIds((current) => (current.includes(queueId) ? current : [...current, queueId]));
+        setClaimedQueueIds((current) =>
+          current.includes(queueId) ? current : [...current, queueId],
+        );
         const persistResponse = await fetch("/api/profile/depositor", {
           method: "PATCH",
           headers: {
@@ -482,7 +571,10 @@ export default function VaultDetailPage() {
             text: "Claim confirmed, but local DB sync failed. It will update after index sync.",
           });
         } else {
-          setActionStatus({ tone: "good", text: `Claim confirmed: ${formatTxHashShort(hash)}` });
+          setActionStatus({
+            tone: "good",
+            text: `Claim confirmed: ${formatTxHashShort(hash)}`,
+          });
         }
         setPositionRefreshNonce((current) => current + 1);
         await refreshVaultData();
@@ -514,11 +606,17 @@ export default function VaultDetailPage() {
     }
 
     try {
-      setRoleActionStatus({ tone: "neutral", text: `${label} transaction submitted...` });
+      setRoleActionStatus({
+        tone: "neutral",
+        text: `${label} transaction submitted...`,
+      });
       const context = buildActionContext();
       await ensureVaultContractCode(context);
       const hash = await action(context);
-      setRoleActionStatus({ tone: "good", text: `${label} confirmed: ${formatTxHashShort(hash)}` });
+      setRoleActionStatus({
+        tone: "good",
+        text: `${label} confirmed: ${formatTxHashShort(hash)}`,
+      });
       setPositionRefreshNonce((current) => current + 1);
       await refreshVaultData();
     } catch (error) {
@@ -547,7 +645,11 @@ export default function VaultDetailPage() {
         <div className="space-y-4">
           <KpiStrip
             items={[
-              { label: "Total Deposits", value: formatUsd(vault.tvl), tone: "accent" },
+              {
+                label: "Total Deposits",
+                value: formatUsd(vault.tvl),
+                tone: "accent",
+              },
               { label: "Liquidity", value: formatUsd(vault.liquidityUsd) },
               { label: "Exposure", value: `${vault.exposurePct}%` },
               { label: "Net APY", value: `${vault.apyNow.toFixed(2)}%` },
@@ -557,11 +659,15 @@ export default function VaultDetailPage() {
           <section className="g-glass p-4 md:p-6" id="overview">
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.14em] text-slate-400">APY Breakdown</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                  APY Breakdown
+                </p>
                 <div className="mt-3 space-y-2 text-sm text-slate-200">
                   <div className="flex items-center justify-between">
                     <span>Vault Net APY</span>
-                    <strong className="text-emerald-300">{vault.apyNow.toFixed(2)}%</strong>
+                    <strong className="text-emerald-300">
+                      {vault.apyNow.toFixed(2)}%
+                    </strong>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Performance Fee</span>
@@ -574,12 +680,26 @@ export default function VaultDetailPage() {
                 </div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Returns</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                  Returns
+                </p>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                  <ReturnStat label="Instant APY" value={`${vault.apyNow.toFixed(2)}%`} />
-                  <ReturnStat label="7D APY" value={`${vault.apy7d.toFixed(2)}%`} />
-                  <ReturnStat label="30D APY" value={`${vault.apy30d.toFixed(2)}%`} />
-                  <ReturnStat label="90D APY" value={`${vault.apy90d.toFixed(2)}%`} />
+                  <ReturnStat
+                    label="Instant APY"
+                    value={`${vault.apyNow.toFixed(2)}%`}
+                  />
+                  <ReturnStat
+                    label="7D APY"
+                    value={`${vault.apy7d.toFixed(2)}%`}
+                  />
+                  <ReturnStat
+                    label="30D APY"
+                    value={`${vault.apy30d.toFixed(2)}%`}
+                  />
+                  <ReturnStat
+                    label="90D APY"
+                    value={`${vault.apy90d.toFixed(2)}%`}
+                  />
                 </div>
               </div>
             </div>
@@ -588,7 +708,10 @@ export default function VaultDetailPage() {
           <div className="g-glass p-4 md:p-6" id="performance">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-white">Performance</h2>
-              <StatusPill text={`${vault.riskScore}/5 Risk`} tone={vault.riskScore <= 2 ? "good" : "warn"} />
+              <StatusPill
+                text={`${vault.riskScore}/5 Risk`}
+                tone={vault.riskScore <= 2 ? "good" : "warn"}
+              />
             </div>
             <div className="vault-chart mt-4">
               {vault.performance.map((point) => (
@@ -611,16 +734,26 @@ export default function VaultDetailPage() {
             <h2 className="text-lg font-bold">Vault Actions</h2>
           </div>
           <div className="grid grid-cols-2 gap-2 rounded-full border border-white/10 bg-white/5 p-1">
-            <button type="button" className={tabClass(tab === "deposit")} onClick={() => setTab("deposit")}>
+            <button
+              type="button"
+              className={tabClass(tab === "deposit")}
+              onClick={() => setTab("deposit")}
+            >
               Deposit
             </button>
-            <button type="button" className={tabClass(tab === "withdraw")} onClick={() => setTab("withdraw")}>
+            <button
+              type="button"
+              className={tabClass(tab === "withdraw")}
+              onClick={() => setTab("withdraw")}
+            >
               Withdraw
             </button>
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-2">
-            <label className="block text-xs uppercase tracking-[0.14em] text-slate-400">Amount ({amountUnit})</label>
+            <label className="block text-xs uppercase tracking-[0.14em] text-slate-400">
+              Amount ({amountUnit})
+            </label>
             {isConnected ? (
               <button
                 type="button"
@@ -641,39 +774,69 @@ export default function VaultDetailPage() {
           />
 
           <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-300">
-            <p>{tab === "deposit" ? "Estimated annual return" : "Estimated unlock value"}</p>
-            <p className="mt-1 text-xl font-bold text-accent">{amount ? `${estimatedDisplayValue.toFixed(4)} ${vault.asset}` : "-"}</p>
+            <p>
+              {tab === "deposit"
+                ? "Estimated annual return"
+                : "Estimated unlock value"}
+            </p>
+            <p className="mt-1 text-xl font-bold text-accent">
+              {amount
+                ? `${estimatedDisplayValue.toFixed(4)} ${vault.asset}`
+                : "-"}
+            </p>
             {tab === "withdraw" && withdrawMode === "queue" ? (
-              <p className="mt-1 text-xs text-slate-400">Queue mode input is in shares ({vault.symbol}).</p>
+              <p className="mt-1 text-xs text-slate-400">
+                Queue mode input is in shares ({vault.symbol}).
+              </p>
             ) : null}
           </div>
 
           {isConnected ? (
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Your Position</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                Your Position
+              </p>
               {userVaultPosition.isLoading ? (
                 <p className="mt-2 text-slate-300">Loading wallet balance...</p>
               ) : (
                 <>
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <span className="text-slate-400">Shares</span>
-                    <strong>{formatTokenAmount(userVaultPosition.sharesFormatted)} {vault.symbol}</strong>
+                    <strong>
+                      {formatTokenAmount(userVaultPosition.sharesFormatted)}{" "}
+                      {vault.symbol}
+                    </strong>
                   </div>
                   <div className="mt-1 flex items-center justify-between gap-2">
                     <span className="text-slate-400">Underlying</span>
-                    <strong>{formatTokenAmount(userVaultPosition.assetsFormatted)} {vault.asset}</strong>
+                    <strong>
+                      {formatTokenAmount(userVaultPosition.assetsFormatted)}{" "}
+                      {vault.asset}
+                    </strong>
                   </div>
                   <div className="mt-1 flex items-center justify-between gap-2">
                     <span className="text-slate-400">Wallet Balance</span>
-                    <strong>{formatTokenAmount(userVaultPosition.walletAssetBalanceFormatted)} {vault.asset}</strong>
+                    <strong>
+                      {formatTokenAmount(
+                        userVaultPosition.walletAssetBalanceFormatted,
+                      )}{" "}
+                      {vault.asset}
+                    </strong>
                   </div>
                   {tab === "withdraw" ? (
                     <p className="mt-2 text-xs text-slate-400">
-                      Available to withdraw approx {formatTokenAmount(userVaultPosition.assetsFormatted)} {vault.asset} ({formatTokenAmount(userVaultPosition.sharesFormatted)} {vault.symbol}).
+                      Available to withdraw approx{" "}
+                      {formatTokenAmount(userVaultPosition.assetsFormatted)}{" "}
+                      {vault.asset} (
+                      {formatTokenAmount(userVaultPosition.sharesFormatted)}{" "}
+                      {vault.symbol}).
                     </p>
                   ) : null}
                   {userVaultPosition.error ? (
-                    <p className="mt-2 text-xs text-amber-200/90">Unable to read live position right now. You can still submit transactions.</p>
+                    <p className="mt-2 text-xs text-amber-200/90">
+                      Unable to read live position right now. You can still
+                      submit transactions.
+                    </p>
                   ) : null}
                 </>
               )}
@@ -683,10 +846,13 @@ export default function VaultDetailPage() {
           {!hasValidVaultAddress ? (
             <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-2">
               <p className="text-xs font-semibold text-amber-100">
-                Vault contract address is unavailable for this run. Transactions are disabled until a valid address is registered.
+                Vault contract address is unavailable for this run. Transactions
+                are disabled until a valid address is registered.
               </p>
               {dbWarningsForSlug.length ? (
-                <p className="mt-1 text-[11px] text-amber-200/80">{dbWarningsForSlug.join(" ")}</p>
+                <p className="mt-1 text-[11px] text-amber-200/80">
+                  {dbWarningsForSlug.join(" ")}
+                </p>
               ) : null}
             </div>
           ) : null}
@@ -694,7 +860,8 @@ export default function VaultDetailPage() {
           {isConnected && isChainMismatch ? (
             <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-2">
               <p className="text-xs font-semibold text-amber-100">
-                Wrong network detected. Connected chain {connectedChainId ?? "unknown"}, expected {expectedChainId}.
+                Wrong network detected. Connected chain{" "}
+                {connectedChainId ?? "unknown"}, expected {expectedChainId}.
               </p>
             </div>
           ) : null}
@@ -720,7 +887,13 @@ export default function VaultDetailPage() {
 
           {!isConnected ? (
             <ConnectWalletButton
-              actionLabel={tab === "deposit" ? "Deposit" : withdrawMode === "instant" ? "Withdraw" : "Redeem"}
+              actionLabel={
+                tab === "deposit"
+                  ? "Deposit"
+                  : withdrawMode === "instant"
+                    ? "Withdraw"
+                    : "Redeem"
+              }
             />
           ) : (
             <button
@@ -729,7 +902,11 @@ export default function VaultDetailPage() {
               disabled={!canWrite}
               className="mt-4 w-full rounded-full border border-accent bg-accent px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] g-on-accent transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {tab === "deposit" ? "Deposit" : withdrawMode === "instant" ? "Withdraw" : "Request Withdraw"}
+              {tab === "deposit"
+                ? "Deposit"
+                : withdrawMode === "instant"
+                  ? "Withdraw"
+                  : "Request Withdraw"}
             </button>
           )}
 
@@ -737,11 +914,17 @@ export default function VaultDetailPage() {
             <div className="mt-3">
               {actionStatus.tone === "warn" ? (
                 <div className="mt-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-2">
-                  <p className="text-xs font-semibold text-amber-100">{actionStatus.text}</p>
+                  <p className="text-xs font-semibold text-amber-100">
+                    {actionStatus.text}
+                  </p>
                   {actionStatus.technicalText ? (
                     <details className="mt-2 text-[11px] text-amber-200/80">
-                      <summary className="cursor-pointer select-none uppercase tracking-[0.12em]">Details</summary>
-                      <p className="mt-1 break-words">{actionStatus.technicalText}</p>
+                      <summary className="cursor-pointer select-none uppercase tracking-[0.12em]">
+                        Details
+                      </summary>
+                      <p className="mt-1 break-words">
+                        {actionStatus.technicalText}
+                      </p>
                     </details>
                   ) : null}
                 </div>
@@ -753,13 +936,21 @@ export default function VaultDetailPage() {
 
           {roleCandidates.length > 0 ? (
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Role Operations</p>
-              <p className="mt-1 text-xs text-slate-300">Run privileged actions for your connected role on this vault.</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                Role Operations
+              </p>
+              <p className="mt-1 text-xs text-slate-300">
+                Run privileged actions for your connected role on this vault.
+              </p>
 
-              <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">Role</label>
+              <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">
+                Role
+              </label>
               <select
                 value={selectedRole ?? ""}
-                onChange={(event) => setSelectedRole(event.target.value as VaultActionRole)}
+                onChange={(event) =>
+                  setSelectedRole(event.target.value as VaultActionRole)
+                }
                 className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-accent"
               >
                 {roleCandidates.map((role) => (
@@ -769,21 +960,29 @@ export default function VaultDetailPage() {
                 ))}
               </select>
 
-              {(selectedRole === "strategist" || selectedRole === "guardian" || selectedRole === "keeper") ? (
+              {selectedRole === "strategist" ||
+              selectedRole === "guardian" ||
+              selectedRole === "keeper" ? (
                 <>
-                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">Strategy Address</label>
+                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">
+                    Strategy Address
+                  </label>
                   <input
                     value={roleStrategyAddress}
-                    onChange={(event) => setRoleStrategyAddress(event.target.value)}
+                    onChange={(event) =>
+                      setRoleStrategyAddress(event.target.value)
+                    }
                     placeholder="0x..."
                     className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-accent"
                   />
                 </>
               ) : null}
 
-              {(selectedRole === "strategist" || selectedRole === "keeper") ? (
+              {selectedRole === "strategist" || selectedRole === "keeper" ? (
                 <>
-                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">Amount (asset units)</label>
+                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">
+                    Amount (asset units)
+                  </label>
                   <input
                     value={roleAmount}
                     onChange={(event) => setRoleAmount(event.target.value)}
@@ -793,12 +992,17 @@ export default function VaultDetailPage() {
                 </>
               ) : null}
 
-              {(selectedRole === "keeper" || selectedRole === "controller-admin") ? (
+              {selectedRole === "keeper" ||
+              selectedRole === "controller-admin" ? (
                 <>
-                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">Controller Address</label>
+                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">
+                    Controller Address
+                  </label>
                   <input
                     value={roleControllerAddress}
-                    onChange={(event) => setRoleControllerAddress(event.target.value)}
+                    onChange={(event) =>
+                      setRoleControllerAddress(event.target.value)
+                    }
                     placeholder="0x..."
                     className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-accent"
                   />
@@ -811,11 +1015,18 @@ export default function VaultDetailPage() {
                     type="button"
                     onClick={() => {
                       if (!isValidEthereumAddress(roleStrategyAddress)) {
-                        setRoleActionStatus({ tone: "warn", text: "Provide a valid strategy address." });
+                        setRoleActionStatus({
+                          tone: "warn",
+                          text: "Provide a valid strategy address.",
+                        });
                         return;
                       }
                       void runRoleAction("Allocate", (context) =>
-                        allocateToStrategy(context, roleStrategyAddress as `0x${string}`, roleAmount),
+                        allocateToStrategy(
+                          context,
+                          roleStrategyAddress as `0x${string}`,
+                          roleAmount,
+                        ),
                       );
                     }}
                     className="rounded-full border border-accent bg-accent px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] g-on-accent"
@@ -826,11 +1037,18 @@ export default function VaultDetailPage() {
                     type="button"
                     onClick={() => {
                       if (!isValidEthereumAddress(roleStrategyAddress)) {
-                        setRoleActionStatus({ tone: "warn", text: "Provide a valid strategy address." });
+                        setRoleActionStatus({
+                          tone: "warn",
+                          text: "Provide a valid strategy address.",
+                        });
                         return;
                       }
                       void runRoleAction("Recall", (context) =>
-                        recallFromStrategyAssets(context, roleStrategyAddress as `0x${string}`, roleAmount),
+                        recallFromStrategyAssets(
+                          context,
+                          roleStrategyAddress as `0x${string}`,
+                          roleAmount,
+                        ),
                       );
                     }}
                     className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
@@ -841,11 +1059,17 @@ export default function VaultDetailPage() {
                     type="button"
                     onClick={() => {
                       if (!isValidEthereumAddress(roleStrategyAddress)) {
-                        setRoleActionStatus({ tone: "warn", text: "Provide a valid strategy address." });
+                        setRoleActionStatus({
+                          tone: "warn",
+                          text: "Provide a valid strategy address.",
+                        });
                         return;
                       }
                       void runRoleAction("Recall all", (context) =>
-                        recallAllFromStrategy(context, roleStrategyAddress as `0x${string}`),
+                        recallAllFromStrategy(
+                          context,
+                          roleStrategyAddress as `0x${string}`,
+                        ),
                       );
                     }}
                     className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
@@ -856,11 +1080,17 @@ export default function VaultDetailPage() {
                     type="button"
                     onClick={() => {
                       if (!isValidEthereumAddress(roleStrategyAddress)) {
-                        setRoleActionStatus({ tone: "warn", text: "Provide a valid strategy address." });
+                        setRoleActionStatus({
+                          tone: "warn",
+                          text: "Provide a valid strategy address.",
+                        });
                         return;
                       }
                       void runRoleAction("Harvest", (context) =>
-                        harvestStrategy(context, roleStrategyAddress as `0x${string}`),
+                        harvestStrategy(
+                          context,
+                          roleStrategyAddress as `0x${string}`,
+                        ),
                       );
                     }}
                     className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
@@ -874,14 +1104,22 @@ export default function VaultDetailPage() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => void runRoleAction("Pause vault", (context) => pauseVault(context))}
+                    onClick={() =>
+                      void runRoleAction("Pause vault", (context) =>
+                        pauseVault(context),
+                      )
+                    }
                     className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-amber-100"
                   >
                     Pause
                   </button>
                   <button
                     type="button"
-                    onClick={() => void runRoleAction("Unpause vault", (context) => unpauseVault(context))}
+                    onClick={() =>
+                      void runRoleAction("Unpause vault", (context) =>
+                        unpauseVault(context),
+                      )
+                    }
                     className="rounded-full border border-emerald-300/40 bg-emerald-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-100"
                   >
                     Unpause
@@ -890,11 +1128,17 @@ export default function VaultDetailPage() {
                     type="button"
                     onClick={() => {
                       if (!isValidEthereumAddress(roleStrategyAddress)) {
-                        setRoleActionStatus({ tone: "warn", text: "Provide a valid strategy address." });
+                        setRoleActionStatus({
+                          tone: "warn",
+                          text: "Provide a valid strategy address.",
+                        });
                         return;
                       }
                       void runRoleAction("Panic strategy", (context) =>
-                        panicVaultStrategy(context, roleStrategyAddress as `0x${string}`),
+                        panicVaultStrategy(
+                          context,
+                          roleStrategyAddress as `0x${string}`,
+                        ),
                       );
                     }}
                     className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-red-300"
@@ -906,7 +1150,9 @@ export default function VaultDetailPage() {
 
               {selectedRole === "keeper" ? (
                 <>
-                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">Settle Max Count</label>
+                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">
+                    Settle Max Count
+                  </label>
                   <input
                     value={roleSettleCount}
                     onChange={(event) => setRoleSettleCount(event.target.value)}
@@ -917,8 +1163,14 @@ export default function VaultDetailPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (!isValidEthereumAddress(roleControllerAddress) || !isValidEthereumAddress(roleStrategyAddress)) {
-                          setRoleActionStatus({ tone: "warn", text: "Provide valid controller and strategy addresses." });
+                        if (
+                          !isValidEthereumAddress(roleControllerAddress) ||
+                          !isValidEthereumAddress(roleStrategyAddress)
+                        ) {
+                          setRoleActionStatus({
+                            tone: "warn",
+                            text: "Provide valid controller and strategy addresses.",
+                          });
                           return;
                         }
                         void runRoleAction("Execute harvest", (context) =>
@@ -936,8 +1188,14 @@ export default function VaultDetailPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (!isValidEthereumAddress(roleControllerAddress) || !isValidEthereumAddress(roleStrategyAddress)) {
-                          setRoleActionStatus({ tone: "warn", text: "Provide valid controller and strategy addresses." });
+                        if (
+                          !isValidEthereumAddress(roleControllerAddress) ||
+                          !isValidEthereumAddress(roleStrategyAddress)
+                        ) {
+                          setRoleActionStatus({
+                            tone: "warn",
+                            text: "Provide valid controller and strategy addresses.",
+                          });
                           return;
                         }
                         void runRoleAction("Execute allocate", (context) =>
@@ -956,8 +1214,14 @@ export default function VaultDetailPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (!isValidEthereumAddress(roleControllerAddress) || !isValidEthereumAddress(roleStrategyAddress)) {
-                          setRoleActionStatus({ tone: "warn", text: "Provide valid controller and strategy addresses." });
+                        if (
+                          !isValidEthereumAddress(roleControllerAddress) ||
+                          !isValidEthereumAddress(roleStrategyAddress)
+                        ) {
+                          setRoleActionStatus({
+                            tone: "warn",
+                            text: "Provide valid controller and strategy addresses.",
+                          });
                           return;
                         }
                         void runRoleAction("Execute recall", (context) =>
@@ -977,7 +1241,10 @@ export default function VaultDetailPage() {
                       type="button"
                       onClick={() => {
                         if (!isValidEthereumAddress(roleControllerAddress)) {
-                          setRoleActionStatus({ tone: "warn", text: "Provide a valid controller address." });
+                          setRoleActionStatus({
+                            tone: "warn",
+                            text: "Provide a valid controller address.",
+                          });
                           return;
                         }
                         void runRoleAction("Settle withdrawals", (context) =>
@@ -1002,11 +1269,18 @@ export default function VaultDetailPage() {
                     type="button"
                     onClick={() => {
                       if (!isValidEthereumAddress(roleControllerAddress)) {
-                        setRoleActionStatus({ tone: "warn", text: "Provide a valid controller address." });
+                        setRoleActionStatus({
+                          tone: "warn",
+                          text: "Provide a valid controller address.",
+                        });
                         return;
                       }
                       void runRoleAction("Pause automation", (context) =>
-                        setControllerAutomationPaused(context, roleControllerAddress as `0x${string}`, true),
+                        setControllerAutomationPaused(
+                          context,
+                          roleControllerAddress as `0x${string}`,
+                          true,
+                        ),
                       );
                     }}
                     className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-amber-100"
@@ -1017,11 +1291,18 @@ export default function VaultDetailPage() {
                     type="button"
                     onClick={() => {
                       if (!isValidEthereumAddress(roleControllerAddress)) {
-                        setRoleActionStatus({ tone: "warn", text: "Provide a valid controller address." });
+                        setRoleActionStatus({
+                          tone: "warn",
+                          text: "Provide a valid controller address.",
+                        });
                         return;
                       }
                       void runRoleAction("Resume automation", (context) =>
-                        setControllerAutomationPaused(context, roleControllerAddress as `0x${string}`, false),
+                        setControllerAutomationPaused(
+                          context,
+                          roleControllerAddress as `0x${string}`,
+                          false,
+                        ),
                       );
                     }}
                     className="rounded-full border border-emerald-300/40 bg-emerald-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-100"
@@ -1031,10 +1312,15 @@ export default function VaultDetailPage() {
                 </div>
               ) : null}
 
-              {(selectedRole === "governance-admin" || selectedRole === "vault-admin") ? (
+              {selectedRole === "governance-admin" ||
+              selectedRole === "vault-admin" ? (
                 <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/40 p-3 text-xs text-slate-300">
-                  Advanced actions for this role are available in the dedicated workspace.
-                  <Link href={`/profile/${selectedRole}`} className="ml-1 font-semibold text-accent hover:underline">
+                  Advanced actions for this role are available in the dedicated
+                  workspace.
+                  <Link
+                    href={`/profile/${selectedRole}`}
+                    className="ml-1 font-semibold text-accent hover:underline"
+                  >
                     Open {humanizeRoleLabel(selectedRole)} workspace
                   </Link>
                   .
@@ -1045,16 +1331,25 @@ export default function VaultDetailPage() {
                 <div className="mt-3">
                   {roleActionStatus.tone === "warn" ? (
                     <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-2">
-                      <p className="text-xs font-semibold text-amber-100">{roleActionStatus.text}</p>
+                      <p className="text-xs font-semibold text-amber-100">
+                        {roleActionStatus.text}
+                      </p>
                       {roleActionStatus.technicalText ? (
                         <details className="mt-2 text-[11px] text-amber-200/80">
-                          <summary className="cursor-pointer select-none uppercase tracking-[0.12em]">Details</summary>
-                          <p className="mt-1 break-words">{roleActionStatus.technicalText}</p>
+                          <summary className="cursor-pointer select-none uppercase tracking-[0.12em]">
+                            Details
+                          </summary>
+                          <p className="mt-1 break-words">
+                            {roleActionStatus.technicalText}
+                          </p>
                         </details>
                       ) : null}
                     </div>
                   ) : (
-                    <StatusPill text={roleActionStatus.text} tone={roleActionStatus.tone} />
+                    <StatusPill
+                      text={roleActionStatus.text}
+                      tone={roleActionStatus.tone}
+                    />
                   )}
                 </div>
               ) : null}
@@ -1093,7 +1388,9 @@ export default function VaultDetailPage() {
                     <td>{allocation.strategy}</td>
                     <td>{allocation.allocationPct}%</td>
                     <td>{formatUsd(allocation.amountUsd)}</td>
-                    <td className="text-emerald-300">{allocation.apy.toFixed(2)}%</td>
+                    <td className="text-emerald-300">
+                      {allocation.apy.toFixed(2)}%
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1102,13 +1399,20 @@ export default function VaultDetailPage() {
           <div className="mt-4 space-y-2">
             {strategyNotes.length ? (
               strategyNotes.map((note, index) => (
-                <div key={`${note.time}-${index}`} className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
-                  <p className="text-xs uppercase tracking-[0.14em] text-slate-400">{note.time}</p>
+                <div
+                  key={`${note.time}-${index}`}
+                  className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200"
+                >
+                  <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                    {note.time}
+                  </p>
                   <p className="mt-1">{note.note}</p>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-slate-300">No recent strategy notes.</p>
+              <p className="text-sm text-slate-300">
+                No recent strategy notes.
+              </p>
             )}
           </div>
         </section>
@@ -1134,7 +1438,9 @@ export default function VaultDetailPage() {
                     <td>{market.vaultAllocationPct}%</td>
                     <td>{formatUsd(market.amountUsd)}</td>
                     <td>{formatUsd(market.supplyCapUsd)}</td>
-                    <td className="text-emerald-300">{market.apy.toFixed(2)}%</td>
+                    <td className="text-emerald-300">
+                      {market.apy.toFixed(2)}%
+                    </td>
                     <td>{market.utilizationPct}%</td>
                   </tr>
                 ))}
@@ -1155,7 +1461,10 @@ export default function VaultDetailPage() {
           </div>
           <ul className="mt-4 space-y-3 text-sm text-slate-300">
             {vault.risks.map((risk) => (
-              <li key={risk} className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <li
+                key={risk}
+                className="rounded-xl border border-white/10 bg-white/5 p-3"
+              >
                 {risk}
               </li>
             ))}
@@ -1167,10 +1476,18 @@ export default function VaultDetailPage() {
           <div className="mt-4 space-y-3">
             {proposals.length ? (
               proposals.map((proposal) => (
-                <div key={proposal.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div
+                  key={proposal.id}
+                  className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-white">{proposal.id} · {proposal.title}</p>
-                    <StatusPill text={proposal.status} tone={proposal.status === "Active" ? "warn" : "good"} />
+                    <p className="text-sm font-semibold text-white">
+                      {proposal.id} · {proposal.title}
+                    </p>
+                    <StatusPill
+                      text={proposal.status}
+                      tone={proposal.status === "Active" ? "warn" : "good"}
+                    />
                   </div>
                   <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-400">
                     <span>{proposal.eta}</span>
@@ -1189,19 +1506,33 @@ export default function VaultDetailPage() {
           <div className="mt-4 grid gap-3">
             {guardianControls.length ? (
               guardianControls.map((control) => (
-                <div key={control.label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div
+                  key={control.label}
+                  className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-white">{control.label}</p>
+                    <p className="text-sm font-semibold text-white">
+                      {control.label}
+                    </p>
                     <StatusPill
                       text={control.state}
-                      tone={control.state === "Unpaused" || control.state === "Ready" ? "good" : "warn"}
+                      tone={
+                        control.state === "Unpaused" ||
+                        control.state === "Ready"
+                          ? "good"
+                          : "warn"
+                      }
                     />
                   </div>
-                  <p className="mt-2 text-xs text-slate-400">Updated: {control.updatedAt}</p>
+                  <p className="mt-2 text-xs text-slate-400">
+                    Updated: {control.updatedAt}
+                  </p>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-slate-300">No guardian controls available.</p>
+              <p className="text-sm text-slate-300">
+                No guardian controls available.
+              </p>
             )}
           </div>
         </section>
@@ -1211,12 +1542,19 @@ export default function VaultDetailPage() {
         <h3 className="text-lg font-bold text-white">Recent Activity</h3>
         <div className="mt-4 space-y-2">
           {vault.activity.map((event, index) => (
-            <div key={`${event.event}-${index}`} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <div
+              key={`${event.event}-${index}`}
+              className="rounded-2xl border border-white/10 bg-white/5 p-3"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <strong className="text-white">{event.event}</strong>
-                <span className="text-xs uppercase tracking-[0.14em] text-slate-400">{event.time}</span>
+                <span className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                  {event.time}
+                </span>
               </div>
-              <p className="mt-1 text-xs text-slate-400">{event.actor} • {event.tx}</p>
+              <p className="mt-1 text-xs text-slate-400">
+                {event.actor} • {event.tx}
+              </p>
               <p className="mt-1 text-sm text-accent">{event.value}</p>
             </div>
           ))}
@@ -1226,7 +1564,8 @@ export default function VaultDetailPage() {
       <section className="g-glass mt-4 p-4 md:p-6" id="queue">
         <h3 className="text-lg font-bold text-white">Withdrawal Queue</h3>
         <p className="mt-2 text-sm text-slate-300">
-          Claim becomes available once your request is settled. Ready requests can be claimed directly from this table.
+          Claim becomes available once your request is settled. Ready requests
+          can be claimed directly from this table.
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           <MetaStat label="Queue Depth" value={`${vault.queueDepthHours}h`} />
@@ -1255,11 +1594,24 @@ export default function VaultDetailPage() {
                   <td>#{entry.position}</td>
                   <td>{entry.eta}</td>
                   <td>
-                    <StatusPill text={claimedQueueIds.includes(entry.id) ? "Claimed" : entry.status} tone={queueStatusTone(claimedQueueIds.includes(entry.id) ? "Claimed" : entry.status)} />
+                    <StatusPill
+                      text={
+                        claimedQueueIds.includes(entry.id)
+                          ? "Claimed"
+                          : entry.status
+                      }
+                      tone={queueStatusTone(
+                        claimedQueueIds.includes(entry.id)
+                          ? "Claimed"
+                          : entry.status,
+                      )}
+                    />
                   </td>
                   <td>
                     {claimedQueueIds.includes(entry.id) ? (
-                      <span className="text-xs uppercase tracking-[0.14em] text-emerald-300">Claimed</span>
+                      <span className="text-xs uppercase tracking-[0.14em] text-emerald-300">
+                        Claimed
+                      </span>
                     ) : isClaimable(entry.status) ? (
                       <button
                         type="button"
@@ -1270,7 +1622,9 @@ export default function VaultDetailPage() {
                         {claimingQueueId === entry.id ? "Claiming..." : "Claim"}
                       </button>
                     ) : (
-                      <span className="text-xs uppercase tracking-[0.14em] text-slate-400">Waiting</span>
+                      <span className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                        Waiting
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -1278,13 +1632,24 @@ export default function VaultDetailPage() {
             </tbody>
           </table>
         </div>
-        {!isConnected ? <ConnectWalletButton actionLabel="Claim" variant="compact" className="mt-4" /> : null}
+        {!isConnected ? (
+          <ConnectWalletButton
+            actionLabel="Claim"
+            variant="compact"
+            className="mt-4"
+          />
+        ) : null}
       </section>
 
       <section className="g-glass mt-4 p-4 md:p-6" id="info">
         <h3 className="text-lg font-bold text-white">More Info</h3>
-        <details className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-300" open>
-          <summary className="cursor-pointer font-semibold text-white">Vault Metadata</summary>
+        <details
+          className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-300"
+          open
+        >
+          <summary className="cursor-pointer font-semibold text-white">
+            Vault Metadata
+          </summary>
           <div className="mt-3 space-y-2">
             <p>Contract: {vault.contractAddress}</p>
             <p>Fee model: {vault.feeModel}</p>
@@ -1297,7 +1662,13 @@ export default function VaultDetailPage() {
   );
 }
 
-type VaultActionRole = "governance-admin" | "vault-admin" | "strategist" | "guardian" | "keeper" | "controller-admin";
+type VaultActionRole =
+  | "governance-admin"
+  | "vault-admin"
+  | "strategist"
+  | "guardian"
+  | "keeper"
+  | "controller-admin";
 
 function isVaultActionRole(role: RoleSlug): role is VaultActionRole {
   return (
@@ -1320,14 +1691,18 @@ function humanizeRoleLabel(role: VaultActionRole): string {
 function tabClass(active: boolean) {
   return [
     "rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition",
-    active ? "bg-accent g-on-accent" : "text-slate-300 hover:bg-white/10 hover:text-white",
+    active
+      ? "bg-accent g-on-accent"
+      : "text-slate-300 hover:bg-white/10 hover:text-white",
   ].join(" ");
 }
 
 function ReturnStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-white/10 bg-slate-950/40 p-3">
-      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">{label}</p>
+      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
+        {label}
+      </p>
       <p className="mt-1 font-semibold text-white">{value}</p>
     </div>
   );
@@ -1336,13 +1711,17 @@ function ReturnStat({ label, value }: { label: string; value: string }) {
 function MetaStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">{label}</p>
+      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
+        {label}
+      </p>
       <p className="mt-1 text-sm font-semibold text-slate-100">{value}</p>
     </div>
   );
 }
 
-function queueStatusTone(status: "Pending" | "Partially Filled" | "Ready to Claim" | "Claimed") {
+function queueStatusTone(
+  status: "Pending" | "Partially Filled" | "Ready to Claim" | "Claimed",
+) {
   if (status === "Claimed" || status === "Ready to Claim") {
     return "good" as const;
   }
