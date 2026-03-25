@@ -2,12 +2,12 @@ import prisma from "@/lib/prisma";
 import { etaForQueueStatus, isClaimedQueueStatus, mapQueueStatus } from "@/lib/server/queue-status";
 import { isValidEthereumAddress } from "@/lib/utils";
 import type {
-  ChainName,
-  GovernanceProposal,
-  GuardianControl,
-  QueueEntry,
-  VaultDetailData,
-  VaultListRow,
+    ChainName,
+    GovernanceProposal,
+    GuardianControl,
+    QueueEntry,
+    VaultDetailData,
+    VaultListRow,
 } from "@/lib/vaults/types";
 
 interface VaultRowsFromDbResult {
@@ -410,6 +410,7 @@ export async function getVaultDetailFromDb(slug: string, runId?: string): Promis
       idleAssets: true,
       pricePerShare: true,
       governanceManager: true,
+      automationController: true,
       createdAt: true,
       withdrawalFeeBps: true,
       shareSymbol: true,
@@ -439,7 +440,9 @@ export async function getVaultDetailFromDb(slug: string, runId?: string): Promis
       orderBy: { createdAt: "desc" },
       select: {
         label: true,
+        address: true,
         capBps: true,
+        targetBps: true,
         totalManagedAssets: true,
         autoManaged: true,
         isPanicked: true,
@@ -514,6 +517,16 @@ export async function getVaultDetailFromDb(slug: string, runId?: string): Promis
             amountUsd: idleAssets,
           },
         ];
+
+  const strategyRows = strategies.map((strategy) => ({
+    label: strategy.label,
+    address: strategy.address,
+    managedAssetsUsd: toFiniteNumber(strategy.totalManagedAssets),
+    capBps: strategy.capBps,
+    targetBps: strategy.targetBps,
+    autoManaged: strategy.autoManaged,
+    isPanicked: strategy.isPanicked,
+  }));
 
   const queue = queueStatuses.map((status, index) => {
     const mappedStatus = mapQueueStatus(status.status);
@@ -622,6 +635,9 @@ export async function getVaultDetailFromDb(slug: string, runId?: string): Promis
     deploymentDate: vault.createdAt.toISOString().slice(0, 10),
     vaultVersion: "v1",
     contractAddress: normalizedVaultAddress,
+    governanceManagerAddress: vault.governanceManager,
+    automationControllerAddress: vault.automationController ?? "",
+    strategyRows,
     feeModel: `${feePct.toFixed(2)}% withdrawal fee`,
   };
 

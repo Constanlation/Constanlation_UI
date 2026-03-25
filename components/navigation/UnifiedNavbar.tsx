@@ -41,7 +41,7 @@ export function UnifiedNavbar({ variant }: UnifiedNavbarProps) {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setFromPortfolio(params.get("from") === "portfolio");
+    setTimeout(() => setFromPortfolio(params.get("from") === "portfolio"), 0);
   }, []);
 
   useMotionValueEvent(scrollY, "change", (latest) => {

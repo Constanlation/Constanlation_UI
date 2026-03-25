@@ -137,6 +137,8 @@ function OrbitItem({ item, index, totalItems, path, itemSize, rotation, progress
         offsetRotate: '0deg',
         offsetAnchor: 'center center',
         offsetDistance,
+        top: 0,
+        left: 0,
       }}
     >
       <div style={{ transform: `rotate(${-rotation}deg)` }}>{item}</div>

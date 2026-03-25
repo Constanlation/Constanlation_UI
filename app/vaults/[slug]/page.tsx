@@ -4,10 +4,13 @@ import { ArrowRightLeft, Landmark, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { formatUnits, parseUnits } from "viem";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 
 import { AppPageFrame, KpiStrip, StatusPill, VaultLocalSubnav } from "@/components/app/AppPrimitives";
 import { ConnectWalletButton } from "@/components/wallet/ConnectWalletButton";
+import { polkadotTestnetContractDefaults } from "@/lib/contracts/registry";
+import { RoleSlug, resolveWalletRoles } from "@/lib/profile/roles";
 import { formatUsd, isValidEthereumAddress } from "@/lib/utils";
 import type {
   GovernanceProposal,
@@ -15,11 +18,24 @@ import type {
   QueueEntry,
   VaultDetailData,
 } from "@/lib/vaults/types";
+import { useUserVaultPosition } from "@/lib/vaults/useUserVaultPosition";
 import { normalizeWalletError } from "@/lib/wallet/error-display";
 import {
+  allocateToStrategy,
   claimWithdrawalById,
   depositAssets,
+  executeKeeperAllocate,
+  executeKeeperHarvest,
+  executeKeeperRecall,
+  executeKeeperSettleWithdrawals,
+  harvestStrategy,
+  panicVaultStrategy,
+  pauseVault,
+  recallAllFromStrategy,
+  recallFromStrategyAssets,
   requestWithdrawAssets,
+  setControllerAutomationPaused,
+  unpauseVault,
   withdrawAssets,
   type VaultActionContext,
 } from "@/lib/wallet/vault-actions";
@@ -68,6 +84,13 @@ export default function VaultDetailPage() {
   const [dbWarnings, setDbWarnings] = useState<{ slug: string; warnings: string[] } | null>(null);
   const [isVaultLoading, setIsVaultLoading] = useState(true);
   const [vaultError, setVaultError] = useState<string | null>(null);
+  const [positionRefreshNonce, setPositionRefreshNonce] = useState(0);
+  const [selectedRole, setSelectedRole] = useState<VaultActionRole | null>(null);
+  const [roleStrategyAddress, setRoleStrategyAddress] = useState(polkadotTestnetContractDefaults.strategy ?? "");
+  const [roleControllerAddress, setRoleControllerAddress] = useState(polkadotTestnetContractDefaults.controller ?? "");
+  const [roleAmount, setRoleAmount] = useState("");
+  const [roleSettleCount, setRoleSettleCount] = useState("5");
+  const [roleActionStatus, setRoleActionStatus] = useState<ActionStatus | null>(null);
 
   const vault = dbVaultState && dbVaultState.slug === params.slug ? dbVaultState.vault : null;
   const strategyNotes =
@@ -90,6 +113,30 @@ export default function VaultDetailPage() {
       : [];
   const dbWarningsForSlug = dbWarnings && dbWarnings.slug === params.slug ? dbWarnings.warnings : [];
   const hasValidVaultAddress = Boolean(vault?.contractAddress && isValidEthereumAddress(vault.contractAddress));
+  const expectedChainId = polkadotTestnetContractDefaults.chainId;
+  const connectedChainId = publicClient?.chain?.id ?? null;
+  const isChainMismatch = connectedChainId !== null && connectedChainId !== expectedChainId;
+  const userVaultPosition = useUserVaultPosition({
+    address,
+    vaultAddress: vault?.contractAddress,
+    publicClient,
+    refreshKey: positionRefreshNonce,
+  });
+  const roleCandidates = resolveWalletRoles(address, isConnected).filter(isVaultActionRole);
+
+  useEffect(() => {
+    if (roleCandidates.length === 0) {
+      setSelectedRole(null);
+      return;
+    }
+
+    setSelectedRole((current) => {
+      if (current && roleCandidates.includes(current)) {
+        return current;
+      }
+      return roleCandidates[0] ?? null;
+    });
+  }, [roleCandidates]);
 
   useEffect(() => {
     let active = true;
@@ -217,7 +264,25 @@ export default function VaultDetailPage() {
     );
   }
 
-  const estimatedYearly = Number(amount || "0") * (vault.apyNow / 100);
+  const numericAmount = Number(amount || "0");
+  const estimatedDisplayValue =
+    tab === "deposit"
+      ? numericAmount * (vault.apyNow / 100)
+      : withdrawMode === "instant"
+      ? numericAmount
+      : numericAmount * vault.sharePrice;
+  const amountUnit = tab === "withdraw" && withdrawMode === "queue" ? vault.symbol : vault.asset;
+  const maxAmount =
+    tab === "deposit"
+      ? userVaultPosition.walletAssetBalance
+      : withdrawMode === "instant"
+      ? userVaultPosition.assets
+      : userVaultPosition.shares;
+  const maxAmountDecimals =
+    tab === "deposit" || withdrawMode === "instant"
+      ? userVaultPosition.assetDecimals
+      : userVaultPosition.shareDecimals;
+  const maxAmountForInput = maxAmount ? trimTokenAmount(formatUnits(maxAmount, maxAmountDecimals)) : "0";
 
   const isClaimable = (status: string) => status === "Ready to Claim";
 
@@ -225,12 +290,16 @@ export default function VaultDetailPage() {
     isConnected &&
       address &&
       publicClient &&
-      hasValidVaultAddress,
+        hasValidVaultAddress &&
+        !isChainMismatch,
   );
 
   const buildActionContext = (): VaultActionContext => {
     if (!address || !publicClient || !hasValidVaultAddress) {
       throw new Error("Wallet or vault address is not ready for transaction.");
+    }
+    if (publicClient.chain?.id !== expectedChainId) {
+      throw new Error(`Wrong network. Switch wallet to chain ${expectedChainId}.`);
     }
 
     return {
@@ -239,6 +308,46 @@ export default function VaultDetailPage() {
       userAddress: address,
       vaultAddress: vault.contractAddress as `0x${string}`,
     };
+  };
+
+  const ensureVaultContractCode = async (context: VaultActionContext) => {
+    const bytecode = await context.publicClient.getCode({ address: context.vaultAddress });
+    if (!bytecode || bytecode === "0x") {
+      throw new Error("Vault contract not found on the connected network.");
+    }
+  };
+
+  const validateAmount = () => {
+    const normalized = amount.trim();
+    if (!normalized) {
+      throw new Error("Enter an amount greater than 0.");
+    }
+
+    if (userVaultPosition.isLoading || userVaultPosition.error || userVaultPosition.source !== "onchain") {
+      return;
+    }
+
+    if (tab === "deposit") {
+      const requestedAssets = parseUnits(normalized, userVaultPosition.assetDecimals);
+      if (requestedAssets > userVaultPosition.walletAssetBalance) {
+        throw new Error(`Amount exceeds your wallet ${vault.asset} balance.`);
+      }
+      return;
+    }
+
+    if (tab === "withdraw") {
+      if (withdrawMode === "instant") {
+        const requestedAssets = parseUnits(normalized, userVaultPosition.assetDecimals);
+        if (requestedAssets > userVaultPosition.assets) {
+          throw new Error("Amount exceeds your available underlying assets.");
+        }
+      } else {
+        const requestedShares = parseUnits(normalized, userVaultPosition.shareDecimals);
+        if (requestedShares > userVaultPosition.shares) {
+          throw new Error("Amount exceeds your vault share balance.");
+        }
+      }
+    }
   };
 
   const refreshVaultData = async () => {
@@ -285,7 +394,12 @@ export default function VaultDetailPage() {
 
   const handlePrimaryAction = async () => {
     if (!canWrite) {
-      setActionStatus({ tone: "warn", text: "Connect wallet and ensure vault contract address is valid." });
+      setActionStatus({
+        tone: "warn",
+        text: isChainMismatch
+          ? `Wrong network. Switch wallet to chain ${expectedChainId}.`
+          : "Connect wallet and ensure vault contract address is valid.",
+      });
       return;
     }
 
@@ -297,6 +411,8 @@ export default function VaultDetailPage() {
     try {
       setActionStatus({ tone: "neutral", text: "Submitting transaction..." });
       const context = buildActionContext();
+      await ensureVaultContractCode(context);
+      validateAmount();
 
       if (tab === "deposit") {
         const hash = await depositAssets(context, amount);
@@ -310,6 +426,7 @@ export default function VaultDetailPage() {
       }
 
       setAmount("");
+      setPositionRefreshNonce((current) => current + 1);
       await refreshVaultData();
     } catch (error) {
       const normalized = normalizeWalletError(error);
@@ -323,7 +440,12 @@ export default function VaultDetailPage() {
 
   const handleClaim = (queueId: string) => {
     if (!canWrite) {
-      setActionStatus({ tone: "warn", text: "Connect wallet and ensure vault contract address is valid." });
+      setActionStatus({
+        tone: "warn",
+        text: isChainMismatch
+          ? `Wrong network. Switch wallet to chain ${expectedChainId}.`
+          : "Connect wallet and ensure vault contract address is valid.",
+      });
       return;
     }
 
@@ -338,6 +460,7 @@ export default function VaultDetailPage() {
     void (async () => {
       try {
         const context = buildActionContext();
+        await ensureVaultContractCode(context);
         const hash = await claimWithdrawalById(context, parsedQueueId);
         setClaimedQueueIds((current) => (current.includes(queueId) ? current : [...current, queueId]));
         const persistResponse = await fetch("/api/profile/depositor", {
@@ -361,6 +484,7 @@ export default function VaultDetailPage() {
         } else {
           setActionStatus({ tone: "good", text: `Claim confirmed: ${formatTxHashShort(hash)}` });
         }
+        setPositionRefreshNonce((current) => current + 1);
         await refreshVaultData();
       } catch (error) {
         const normalized = normalizeWalletError(error);
@@ -373,6 +497,38 @@ export default function VaultDetailPage() {
         setClaimingQueueId(null);
       }
     })();
+  };
+
+  const runRoleAction = async (
+    label: string,
+    action: (context: VaultActionContext) => Promise<`0x${string}`>,
+  ) => {
+    if (!canWrite) {
+      setRoleActionStatus({
+        tone: "warn",
+        text: isChainMismatch
+          ? `Wrong network. Switch wallet to chain ${expectedChainId}.`
+          : "Connect wallet and ensure vault contract address is valid.",
+      });
+      return;
+    }
+
+    try {
+      setRoleActionStatus({ tone: "neutral", text: `${label} transaction submitted...` });
+      const context = buildActionContext();
+      await ensureVaultContractCode(context);
+      const hash = await action(context);
+      setRoleActionStatus({ tone: "good", text: `${label} confirmed: ${formatTxHashShort(hash)}` });
+      setPositionRefreshNonce((current) => current + 1);
+      await refreshVaultData();
+    } catch (error) {
+      const normalized = normalizeWalletError(error);
+      setRoleActionStatus({
+        tone: "warn",
+        text: normalized.publicMessage,
+        technicalText: normalized.technicalMessage,
+      });
+    }
   };
 
   return (
@@ -463,7 +619,18 @@ export default function VaultDetailPage() {
             </button>
           </div>
 
-          <label className="mt-4 block text-xs uppercase tracking-[0.14em] text-slate-400">Amount ({vault.asset})</label>
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <label className="block text-xs uppercase tracking-[0.14em] text-slate-400">Amount ({amountUnit})</label>
+            {isConnected ? (
+              <button
+                type="button"
+                onClick={() => setAmount(maxAmountForInput)}
+                className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent hover:opacity-90"
+              >
+                Max
+              </button>
+            ) : null}
+          </div>
           <input
             type="number"
             min="0"
@@ -475,8 +642,43 @@ export default function VaultDetailPage() {
 
           <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-300">
             <p>{tab === "deposit" ? "Estimated annual return" : "Estimated unlock value"}</p>
-            <p className="mt-1 text-xl font-bold text-accent">{amount ? `${estimatedYearly.toFixed(2)} ${vault.asset}` : "-"}</p>
+            <p className="mt-1 text-xl font-bold text-accent">{amount ? `${estimatedDisplayValue.toFixed(4)} ${vault.asset}` : "-"}</p>
+            {tab === "withdraw" && withdrawMode === "queue" ? (
+              <p className="mt-1 text-xs text-slate-400">Queue mode input is in shares ({vault.symbol}).</p>
+            ) : null}
           </div>
+
+          {isConnected ? (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Your Position</p>
+              {userVaultPosition.isLoading ? (
+                <p className="mt-2 text-slate-300">Loading wallet balance...</p>
+              ) : (
+                <>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-slate-400">Shares</span>
+                    <strong>{formatTokenAmount(userVaultPosition.sharesFormatted)} {vault.symbol}</strong>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="text-slate-400">Underlying</span>
+                    <strong>{formatTokenAmount(userVaultPosition.assetsFormatted)} {vault.asset}</strong>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="text-slate-400">Wallet Balance</span>
+                    <strong>{formatTokenAmount(userVaultPosition.walletAssetBalanceFormatted)} {vault.asset}</strong>
+                  </div>
+                  {tab === "withdraw" ? (
+                    <p className="mt-2 text-xs text-slate-400">
+                      Available to withdraw approx {formatTokenAmount(userVaultPosition.assetsFormatted)} {vault.asset} ({formatTokenAmount(userVaultPosition.sharesFormatted)} {vault.symbol}).
+                    </p>
+                  ) : null}
+                  {userVaultPosition.error ? (
+                    <p className="mt-2 text-xs text-amber-200/90">Unable to read live position right now. You can still submit transactions.</p>
+                  ) : null}
+                </>
+              )}
+            </div>
+          ) : null}
 
           {!hasValidVaultAddress ? (
             <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-2">
@@ -486,6 +688,14 @@ export default function VaultDetailPage() {
               {dbWarningsForSlug.length ? (
                 <p className="mt-1 text-[11px] text-amber-200/80">{dbWarningsForSlug.join(" ")}</p>
               ) : null}
+            </div>
+          ) : null}
+
+          {isConnected && isChainMismatch ? (
+            <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-2">
+              <p className="text-xs font-semibold text-amber-100">
+                Wrong network detected. Connected chain {connectedChainId ?? "unknown"}, expected {expectedChainId}.
+              </p>
             </div>
           ) : null}
 
@@ -538,6 +748,316 @@ export default function VaultDetailPage() {
               ) : (
                 <StatusPill text={actionStatus.text} tone={actionStatus.tone} />
               )}
+            </div>
+          ) : null}
+
+          {roleCandidates.length > 0 ? (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
+              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Role Operations</p>
+              <p className="mt-1 text-xs text-slate-300">Run privileged actions for your connected role on this vault.</p>
+
+              <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">Role</label>
+              <select
+                value={selectedRole ?? ""}
+                onChange={(event) => setSelectedRole(event.target.value as VaultActionRole)}
+                className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-accent"
+              >
+                {roleCandidates.map((role) => (
+                  <option key={role} value={role}>
+                    {humanizeRoleLabel(role)}
+                  </option>
+                ))}
+              </select>
+
+              {(selectedRole === "strategist" || selectedRole === "guardian" || selectedRole === "keeper") ? (
+                <>
+                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">Strategy Address</label>
+                  <input
+                    value={roleStrategyAddress}
+                    onChange={(event) => setRoleStrategyAddress(event.target.value)}
+                    placeholder="0x..."
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                  />
+                </>
+              ) : null}
+
+              {(selectedRole === "strategist" || selectedRole === "keeper") ? (
+                <>
+                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">Amount (asset units)</label>
+                  <input
+                    value={roleAmount}
+                    onChange={(event) => setRoleAmount(event.target.value)}
+                    placeholder="0.0"
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                  />
+                </>
+              ) : null}
+
+              {(selectedRole === "keeper" || selectedRole === "controller-admin") ? (
+                <>
+                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">Controller Address</label>
+                  <input
+                    value={roleControllerAddress}
+                    onChange={(event) => setRoleControllerAddress(event.target.value)}
+                    placeholder="0x..."
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                  />
+                </>
+              ) : null}
+
+              {selectedRole === "strategist" ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isValidEthereumAddress(roleStrategyAddress)) {
+                        setRoleActionStatus({ tone: "warn", text: "Provide a valid strategy address." });
+                        return;
+                      }
+                      void runRoleAction("Allocate", (context) =>
+                        allocateToStrategy(context, roleStrategyAddress as `0x${string}`, roleAmount),
+                      );
+                    }}
+                    className="rounded-full border border-accent bg-accent px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] g-on-accent"
+                  >
+                    Allocate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isValidEthereumAddress(roleStrategyAddress)) {
+                        setRoleActionStatus({ tone: "warn", text: "Provide a valid strategy address." });
+                        return;
+                      }
+                      void runRoleAction("Recall", (context) =>
+                        recallFromStrategyAssets(context, roleStrategyAddress as `0x${string}`, roleAmount),
+                      );
+                    }}
+                    className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
+                  >
+                    Recall
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isValidEthereumAddress(roleStrategyAddress)) {
+                        setRoleActionStatus({ tone: "warn", text: "Provide a valid strategy address." });
+                        return;
+                      }
+                      void runRoleAction("Recall all", (context) =>
+                        recallAllFromStrategy(context, roleStrategyAddress as `0x${string}`),
+                      );
+                    }}
+                    className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
+                  >
+                    Recall All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isValidEthereumAddress(roleStrategyAddress)) {
+                        setRoleActionStatus({ tone: "warn", text: "Provide a valid strategy address." });
+                        return;
+                      }
+                      void runRoleAction("Harvest", (context) =>
+                        harvestStrategy(context, roleStrategyAddress as `0x${string}`),
+                      );
+                    }}
+                    className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
+                  >
+                    Harvest
+                  </button>
+                </div>
+              ) : null}
+
+              {selectedRole === "guardian" ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void runRoleAction("Pause vault", (context) => pauseVault(context))}
+                    className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-amber-100"
+                  >
+                    Pause
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void runRoleAction("Unpause vault", (context) => unpauseVault(context))}
+                    className="rounded-full border border-emerald-300/40 bg-emerald-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-100"
+                  >
+                    Unpause
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isValidEthereumAddress(roleStrategyAddress)) {
+                        setRoleActionStatus({ tone: "warn", text: "Provide a valid strategy address." });
+                        return;
+                      }
+                      void runRoleAction("Panic strategy", (context) =>
+                        panicVaultStrategy(context, roleStrategyAddress as `0x${string}`),
+                      );
+                    }}
+                    className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-red-300"
+                  >
+                    Panic Strategy
+                  </button>
+                </div>
+              ) : null}
+
+              {selectedRole === "keeper" ? (
+                <>
+                  <label className="mt-3 block text-xs uppercase tracking-[0.14em] text-slate-400">Settle Max Count</label>
+                  <input
+                    value={roleSettleCount}
+                    onChange={(event) => setRoleSettleCount(event.target.value)}
+                    placeholder="5"
+                    className="mt-1 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                  />
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isValidEthereumAddress(roleControllerAddress) || !isValidEthereumAddress(roleStrategyAddress)) {
+                          setRoleActionStatus({ tone: "warn", text: "Provide valid controller and strategy addresses." });
+                          return;
+                        }
+                        void runRoleAction("Execute harvest", (context) =>
+                          executeKeeperHarvest(
+                            context,
+                            roleControllerAddress as `0x${string}`,
+                            roleStrategyAddress as `0x${string}`,
+                          ),
+                        );
+                      }}
+                      className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
+                    >
+                      Harvest
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isValidEthereumAddress(roleControllerAddress) || !isValidEthereumAddress(roleStrategyAddress)) {
+                          setRoleActionStatus({ tone: "warn", text: "Provide valid controller and strategy addresses." });
+                          return;
+                        }
+                        void runRoleAction("Execute allocate", (context) =>
+                          executeKeeperAllocate(
+                            context,
+                            roleControllerAddress as `0x${string}`,
+                            roleStrategyAddress as `0x${string}`,
+                            roleAmount,
+                          ),
+                        );
+                      }}
+                      className="rounded-full border border-accent bg-accent px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] g-on-accent"
+                    >
+                      Allocate
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isValidEthereumAddress(roleControllerAddress) || !isValidEthereumAddress(roleStrategyAddress)) {
+                          setRoleActionStatus({ tone: "warn", text: "Provide valid controller and strategy addresses." });
+                          return;
+                        }
+                        void runRoleAction("Execute recall", (context) =>
+                          executeKeeperRecall(
+                            context,
+                            roleControllerAddress as `0x${string}`,
+                            roleStrategyAddress as `0x${string}`,
+                            roleAmount,
+                          ),
+                        );
+                      }}
+                      className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
+                    >
+                      Recall
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isValidEthereumAddress(roleControllerAddress)) {
+                          setRoleActionStatus({ tone: "warn", text: "Provide a valid controller address." });
+                          return;
+                        }
+                        void runRoleAction("Settle withdrawals", (context) =>
+                          executeKeeperSettleWithdrawals(
+                            context,
+                            roleControllerAddress as `0x${string}`,
+                            Number(roleSettleCount),
+                          ),
+                        );
+                      }}
+                      className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200"
+                    >
+                      Settle
+                    </button>
+                  </div>
+                </>
+              ) : null}
+
+              {selectedRole === "controller-admin" ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isValidEthereumAddress(roleControllerAddress)) {
+                        setRoleActionStatus({ tone: "warn", text: "Provide a valid controller address." });
+                        return;
+                      }
+                      void runRoleAction("Pause automation", (context) =>
+                        setControllerAutomationPaused(context, roleControllerAddress as `0x${string}`, true),
+                      );
+                    }}
+                    className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-amber-100"
+                  >
+                    Pause Automation
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isValidEthereumAddress(roleControllerAddress)) {
+                        setRoleActionStatus({ tone: "warn", text: "Provide a valid controller address." });
+                        return;
+                      }
+                      void runRoleAction("Resume automation", (context) =>
+                        setControllerAutomationPaused(context, roleControllerAddress as `0x${string}`, false),
+                      );
+                    }}
+                    className="rounded-full border border-emerald-300/40 bg-emerald-300/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-100"
+                  >
+                    Resume Automation
+                  </button>
+                </div>
+              ) : null}
+
+              {(selectedRole === "governance-admin" || selectedRole === "vault-admin") ? (
+                <div className="mt-3 rounded-xl border border-white/10 bg-slate-950/40 p-3 text-xs text-slate-300">
+                  Advanced actions for this role are available in the dedicated workspace.
+                  <Link href={`/profile/${selectedRole}`} className="ml-1 font-semibold text-accent hover:underline">
+                    Open {humanizeRoleLabel(selectedRole)} workspace
+                  </Link>
+                  .
+                </div>
+              ) : null}
+
+              {roleActionStatus ? (
+                <div className="mt-3">
+                  {roleActionStatus.tone === "warn" ? (
+                    <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-2">
+                      <p className="text-xs font-semibold text-amber-100">{roleActionStatus.text}</p>
+                      {roleActionStatus.technicalText ? (
+                        <details className="mt-2 text-[11px] text-amber-200/80">
+                          <summary className="cursor-pointer select-none uppercase tracking-[0.12em]">Details</summary>
+                          <p className="mt-1 break-words">{roleActionStatus.technicalText}</p>
+                        </details>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <StatusPill text={roleActionStatus.text} tone={roleActionStatus.tone} />
+                  )}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -777,6 +1297,26 @@ export default function VaultDetailPage() {
   );
 }
 
+type VaultActionRole = "governance-admin" | "vault-admin" | "strategist" | "guardian" | "keeper" | "controller-admin";
+
+function isVaultActionRole(role: RoleSlug): role is VaultActionRole {
+  return (
+    role === "governance-admin" ||
+    role === "vault-admin" ||
+    role === "strategist" ||
+    role === "guardian" ||
+    role === "keeper" ||
+    role === "controller-admin"
+  );
+}
+
+function humanizeRoleLabel(role: VaultActionRole): string {
+  return role
+    .split("-")
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(" ");
+}
+
 function tabClass(active: boolean) {
   return [
     "rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition",
@@ -816,4 +1356,25 @@ function formatTxHashShort(hash: string): string {
   }
 
   return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
+}
+
+function formatTokenAmount(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "0";
+  }
+
+  if (value >= 1_000_000) {
+    return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+
+  if (value >= 1) {
+    return value.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  }
+
+  return value.toLocaleString(undefined, { maximumFractionDigits: 8 });
+}
+
+function trimTokenAmount(value: string): string {
+  const trimmed = value.replace(/\.?0+$/, "");
+  return trimmed.length > 0 ? trimmed : "0";
 }

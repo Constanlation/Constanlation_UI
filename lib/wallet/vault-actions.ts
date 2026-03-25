@@ -1,6 +1,6 @@
 import { type PublicClient, parseUnits } from "viem";
 
-import { paraVaultAbi, vaultAutomationControllerAbi } from "@/lib/contracts/registry";
+import { governanceManagerAbi, paraVaultAbi, vaultAutomationControllerAbi } from "@/lib/contracts/registry";
 
 const erc20Abi = [
   {
@@ -30,6 +30,13 @@ const erc20Abi = [
     inputs: [],
     outputs: [{ name: "", type: "uint8" }],
   },
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
 ] as const;
 
 export interface VaultActionContext {
@@ -45,10 +52,13 @@ export interface VaultActionContext {
 }
 
 async function waitForTx(publicClient: PublicClient, hash: `0x${string}`) {
-  await publicClient.waitForTransactionReceipt({ hash });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+  if (receipt.status !== "success") {
+    throw new Error(`Transaction reverted on-chain: ${hash}`);
+  }
 }
 
-async function readVaultAssetAddress(publicClient: PublicClient, vaultAddress: `0x${string}`) {
+export async function readVaultAssetAddress(publicClient: PublicClient, vaultAddress: `0x${string}`) {
   const assetAddress = await publicClient.readContract({
     address: vaultAddress,
     abi: paraVaultAbi,
@@ -59,10 +69,20 @@ async function readVaultAssetAddress(publicClient: PublicClient, vaultAddress: `
   return assetAddress as `0x${string}`;
 }
 
-async function readAssetDecimals(publicClient: PublicClient, assetAddress: `0x${string}`) {
+export async function readAssetDecimals(publicClient: PublicClient, assetAddress: `0x${string}`) {
   const decimals = await publicClient.readContract({
     address: assetAddress,
     abi: erc20Abi,
+    functionName: "decimals",
+    args: [],
+  });
+  return Number(decimals);
+}
+
+export async function readVaultShareDecimals(publicClient: PublicClient, vaultAddress: `0x${string}`) {
+  const decimals = await publicClient.readContract({
+    address: vaultAddress,
+    abi: paraVaultAbi,
     functionName: "decimals",
     args: [],
   });
@@ -77,6 +97,75 @@ async function parseAssetAmount(
   const assetAddress = await readVaultAssetAddress(publicClient, vaultAddress);
   const decimals = await readAssetDecimals(publicClient, assetAddress);
   return parseUnits(humanAmount, decimals);
+}
+
+async function parseShareAmount(
+  publicClient: PublicClient,
+  vaultAddress: `0x${string}`,
+  humanAmount: string,
+): Promise<bigint> {
+  const decimals = await readVaultShareDecimals(publicClient, vaultAddress);
+  return parseUnits(humanAmount, decimals);
+}
+
+export async function readVaultShareBalance(
+  publicClient: PublicClient,
+  vaultAddress: `0x${string}`,
+  userAddress: `0x${string}`,
+) {
+  const balance = await publicClient.readContract({
+    address: vaultAddress,
+    abi: paraVaultAbi,
+    functionName: "balanceOf",
+    args: [userAddress],
+  });
+
+  return balance as bigint;
+}
+
+export async function readAssetBalance(
+  publicClient: PublicClient,
+  assetAddress: `0x${string}`,
+  userAddress: `0x${string}`,
+) {
+  const balance = await publicClient.readContract({
+    address: assetAddress,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [userAddress],
+  });
+
+  return balance as bigint;
+}
+
+export async function readMaxWithdrawAssets(
+  publicClient: PublicClient,
+  vaultAddress: `0x${string}`,
+  userAddress: `0x${string}`,
+) {
+  const maxWithdraw = await publicClient.readContract({
+    address: vaultAddress,
+    abi: paraVaultAbi,
+    functionName: "maxWithdraw",
+    args: [userAddress],
+  });
+
+  return maxWithdraw as bigint;
+}
+
+export async function previewRedeemAssets(
+  publicClient: PublicClient,
+  vaultAddress: `0x${string}`,
+  shares: bigint,
+) {
+  const assets = await publicClient.readContract({
+    address: vaultAddress,
+    abi: paraVaultAbi,
+    functionName: "previewRedeem",
+    args: [shares],
+  });
+
+  return assets as bigint;
 }
 
 async function ensureVaultAllowance(
@@ -140,7 +229,7 @@ export async function withdrawAssets(context: VaultActionContext, humanAmount: s
 }
 
 export async function requestWithdrawAssets(context: VaultActionContext, humanAmount: string) {
-  const shares = await parseAssetAmount(context.publicClient, context.vaultAddress, humanAmount);
+  const shares = await parseShareAmount(context.publicClient, context.vaultAddress, humanAmount);
   if (shares <= BigInt(0)) {
     throw new Error("Amount must be greater than 0");
   }
@@ -266,6 +355,305 @@ export async function unpauseVault(context: VaultActionContext) {
     abi: paraVaultAbi,
     functionName: "unpause",
     args: [],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function mintVaultShares(context: VaultActionContext, humanShares: string) {
+  const shares = await parseShareAmount(context.publicClient, context.vaultAddress, humanShares);
+  if (shares <= BigInt(0)) {
+    throw new Error("Amount must be greater than 0");
+  }
+
+  const hash = await context.writeContractAsync({
+    address: context.vaultAddress,
+    abi: paraVaultAbi,
+    functionName: "mint",
+    args: [shares, context.userAddress],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function redeemVaultShares(context: VaultActionContext, humanShares: string) {
+  const shares = await parseShareAmount(context.publicClient, context.vaultAddress, humanShares);
+  if (shares <= BigInt(0)) {
+    throw new Error("Amount must be greater than 0");
+  }
+
+  const hash = await context.writeContractAsync({
+    address: context.vaultAddress,
+    abi: paraVaultAbi,
+    functionName: "redeem",
+    args: [shares, context.userAddress, context.userAddress],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+function toUint16(value: number, label: string) {
+  if (!Number.isInteger(value) || value < 0 || value > 65_535) {
+    throw new Error(`${label} must be an integer between 0 and 65535`);
+  }
+  return value;
+}
+
+export async function setVaultIdlePolicy(
+  context: VaultActionContext,
+  minIdleBps: number,
+  rebalanceSlackBps: number,
+) {
+  const hash = await context.writeContractAsync({
+    address: context.vaultAddress,
+    abi: paraVaultAbi,
+    functionName: "setIdlePolicy",
+    args: [toUint16(minIdleBps, "Min idle BPS"), toUint16(rebalanceSlackBps, "Rebalance slack BPS")],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function rescueVaultToken(
+  context: VaultActionContext,
+  tokenAddress: `0x${string}`,
+  recipientAddress: `0x${string}`,
+  humanAmount: string,
+) {
+  const amount = await parseAssetAmount(context.publicClient, context.vaultAddress, humanAmount);
+  if (amount <= BigInt(0)) {
+    throw new Error("Amount must be greater than 0");
+  }
+
+  const hash = await context.writeContractAsync({
+    address: context.vaultAddress,
+    abi: paraVaultAbi,
+    functionName: "rescueToken",
+    args: [tokenAddress, recipientAddress, amount],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function grantVaultRole(
+  context: VaultActionContext,
+  role: `0x${string}`,
+  accountAddress: `0x${string}`,
+) {
+  const hash = await context.writeContractAsync({
+    address: context.vaultAddress,
+    abi: paraVaultAbi,
+    functionName: "grantRole",
+    args: [role, accountAddress],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function revokeVaultRole(
+  context: VaultActionContext,
+  role: `0x${string}`,
+  accountAddress: `0x${string}`,
+) {
+  const hash = await context.writeContractAsync({
+    address: context.vaultAddress,
+    abi: paraVaultAbi,
+    functionName: "revokeRole",
+    args: [role, accountAddress],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+function validateBps(value: number, label: string) {
+  return toUint16(value, label);
+}
+
+export interface GovernanceStrategyAutomationInput {
+  targetBps: number;
+  autoManaged: boolean;
+}
+
+export async function governanceApproveStrategy(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  strategyAddress: `0x${string}`,
+  capBps: number,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "approveStrategy",
+    args: [strategyAddress, validateBps(capBps, "Strategy cap BPS")],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function governanceDisableStrategy(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  strategyAddress: `0x${string}`,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "disableStrategy",
+    args: [strategyAddress],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function governanceSetGuardian(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  guardianAddress: `0x${string}`,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "setGuardian",
+    args: [context.vaultAddress, guardianAddress],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function governanceRevokeGuardian(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  guardianAddress: `0x${string}`,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "revokeGuardian",
+    args: [context.vaultAddress, guardianAddress],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function governanceSetStrategist(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  strategistAddress: `0x${string}`,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "setStrategist",
+    args: [context.vaultAddress, strategistAddress],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function governanceRevokeStrategist(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  strategistAddress: `0x${string}`,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "revokeStrategist",
+    args: [context.vaultAddress, strategistAddress],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function governanceSetStrategyCap(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  strategyAddress: `0x${string}`,
+  capBps: number,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "setStrategyCap",
+    args: [strategyAddress, validateBps(capBps, "Strategy cap BPS")],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function governanceSetStrategyAutomationConfig(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  strategyAddress: `0x${string}`,
+  config: GovernanceStrategyAutomationInput,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "setStrategyAutomationConfig",
+    args: [strategyAddress, validateBps(config.targetBps, "Strategy target BPS"), config.autoManaged],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function governanceSetTreasury(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  treasuryAddress: `0x${string}`,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "setTreasury",
+    args: [treasuryAddress],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function governanceSetWithdrawalFeeBps(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  feeBps: number,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "setWithdrawalFeeBps",
+    args: [validateBps(feeBps, "Withdrawal fee BPS")],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function governanceGrantRole(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  role: `0x${string}`,
+  accountAddress: `0x${string}`,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "grantRole",
+    args: [role, accountAddress],
+  });
+  await waitForTx(context.publicClient, hash);
+  return hash;
+}
+
+export async function governanceRevokeRole(
+  context: VaultActionContext,
+  governanceManagerAddress: `0x${string}`,
+  role: `0x${string}`,
+  accountAddress: `0x${string}`,
+) {
+  const hash = await context.writeContractAsync({
+    address: governanceManagerAddress,
+    abi: governanceManagerAbi,
+    functionName: "revokeRole",
+    args: [role, accountAddress],
   });
   await waitForTx(context.publicClient, hash);
   return hash;

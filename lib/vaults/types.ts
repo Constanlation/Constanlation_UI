@@ -23,6 +23,16 @@ export interface StrategyAllocation {
   amountUsd: number;
 }
 
+export interface StrategyOperationRow {
+  label: string;
+  address: string;
+  managedAssetsUsd: number;
+  capBps: number;
+  targetBps: number;
+  autoManaged: boolean;
+  isPanicked: boolean;
+}
+
 export interface ActivityEvent {
   time: string;
   event: string;
@@ -73,6 +83,9 @@ export interface VaultDetailData {
   deploymentDate: string;
   vaultVersion: string;
   contractAddress: string;
+  governanceManagerAddress: string;
+  automationControllerAddress: string;
+  strategyRows: StrategyOperationRow[];
   feeModel: string;
 }
 
