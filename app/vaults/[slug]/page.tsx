@@ -8,41 +8,41 @@ import { formatUnits, parseUnits } from "viem";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 
 import {
-  AppPageFrame,
-  KpiStrip,
-  StatusPill,
-  VaultLocalSubnav,
+    AppPageFrame,
+    KpiStrip,
+    StatusPill,
+    VaultLocalSubnav,
 } from "@/components/app/AppPrimitives";
 import { ConnectWalletButton } from "@/components/wallet/ConnectWalletButton";
 import { polkadotTestnetContractDefaults } from "@/lib/contracts/registry";
 import { RoleSlug, resolveWalletRoles } from "@/lib/profile/roles";
 import { formatUsd, isValidEthereumAddress } from "@/lib/utils";
 import type {
-  GovernanceProposal,
-  GuardianControl,
-  QueueEntry,
-  VaultDetailData,
+    GovernanceProposal,
+    GuardianControl,
+    QueueEntry,
+    VaultDetailData,
 } from "@/lib/vaults/types";
 import { useUserVaultPosition } from "@/lib/vaults/useUserVaultPosition";
 import { normalizeWalletError } from "@/lib/wallet/error-display";
 import {
-  allocateToStrategy,
-  claimWithdrawalById,
-  depositAssets,
-  executeKeeperAllocate,
-  executeKeeperHarvest,
-  executeKeeperRecall,
-  executeKeeperSettleWithdrawals,
-  harvestStrategy,
-  panicVaultStrategy,
-  pauseVault,
-  recallAllFromStrategy,
-  recallFromStrategyAssets,
-  requestWithdrawAssets,
-  setControllerAutomationPaused,
-  unpauseVault,
-  withdrawAssets,
-  type VaultActionContext,
+    allocateToStrategy,
+    claimWithdrawalById,
+    depositAssets,
+    executeKeeperAllocate,
+    executeKeeperHarvest,
+    executeKeeperRecall,
+    executeKeeperSettleWithdrawals,
+    harvestStrategy,
+    panicVaultStrategy,
+    pauseVault,
+    recallAllFromStrategy,
+    recallFromStrategyAssets,
+    requestWithdrawAssets,
+    setControllerAutomationPaused,
+    unpauseVault,
+    withdrawAssets,
+    type VaultActionContext,
 } from "@/lib/wallet/vault-actions";
 
 type ActionTab = "deposit" | "withdraw";
